@@ -1,27 +1,27 @@
 cmake_minimum_required(VERSION 3.12)
 project(ugraph VERSION 0.1
-    DESCRIPTION "Pan-genome assisted variant caller for microbial genomes"
+    DESCRIPTION "Pan-genome graph assisted variant caller for microbial genomes"
     LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 14)
 
-# Include Bifrost
-add_subdirectory(vendor/bifrost)
+# Setup third party dependencies
+add_subdirectory(vendor)
 
-# Define LEMON graph library
-add_library(lemon INTERFACE)
-target_include_directories(lemon INTERFACE
-    INTERFACE
+# Define ugraph (header only) library
+add_library(ugraphlib INTERFACE)
+
+target_sources(ugraphlib INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ugraph/bifrost_lemon_graph.h)
+
+target_include_directories(ugraphlib INTERFACE
     $<INSTALL_INTERFACE:include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/vendor/lemon/include>
-    )
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
-# Include testing framework
-add_subdirectory(vendor/Catch2)
+target_link_libraries(ugraphlib INTERFACE lemon bifrost_static)
 
-# Our directory with CLI programs
+# ugraph CLI targets
 add_subdirectory(cli)
 
 # Our directory with tests
 add_subdirectory(tests)
-
