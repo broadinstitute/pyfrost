@@ -23,5 +23,14 @@ target_link_libraries(ugraphlib INTERFACE lemon bifrost_static)
 # ugraph CLI targets
 add_subdirectory(cli)
 
-# Our directory with tests
-add_subdirectory(tests)
+# Setup unit testing
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vendor/Catch2/contrib")
+    include(CTest)
+    include(Catch)
+endif()
+
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+    message("Enabling testing")
+    add_subdirectory(tests)
+endif()
