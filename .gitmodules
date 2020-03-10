@@ -4,6 +4,3 @@
 [submodule "vendor/Catch2"]
 	path = vendor/Catch2
 	url = https://github.com/catchorg/Catch2
-[submodule "vendor/lemon"]
-	path = vendor/lemon
-	url = https://github.com/seqan/lemon
