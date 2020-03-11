@@ -4,3 +4,6 @@
 [submodule "vendor/Catch2"]
 	path = vendor/Catch2
 	url = https://github.com/catchorg/Catch2
+[submodule "vendor/pybind11"]
+	path = vendor/pybind11
+	url = https://github.com/pybind/pybind11
