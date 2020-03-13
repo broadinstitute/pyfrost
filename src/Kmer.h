@@ -42,7 +42,8 @@ void define_Kmer(py::module &m) {
         .def("hash", &Kmer::hash, "Get the hash value for this k-mer", py::arg("seed") = 0);
 
 
-    m.attr("max_k") = MAX_KMER_SIZE;
+    // two bits are reserved for k-mer metadata
+    m.attr("max_k") = MAX_KMER_SIZE - 1;
 
     m.def("set_k", &Kmer::set_k, "Set the k-mer size for all `Kmer` objects. Only use at the beginning of the program!");
 }

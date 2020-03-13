@@ -4,6 +4,10 @@
 #include <pybind11/stl.h>
 
 #include "Kmer.h"
+#include "UnitigDataDict.h"
+#include "Unitig.h"
+#include "NodeView.h"
+#include "BifrostDiGraph.h"
 
 namespace py = pybind11;
 
@@ -18,4 +22,7 @@ PYBIND11_MODULE(bifrost_python, m) {
     )doc";
 
     pyfrost::define_Kmer(m);
+    pyfrost::define_Unitig(m);
+    pyfrost::define_NodeView(m);
+    pyfrost::define_BifrostDiGraph(m);
 }
