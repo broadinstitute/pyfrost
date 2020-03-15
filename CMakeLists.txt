@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 project(pyfrost VERSION 0.1
-    DESCRIPTION "Pan-genome graph assisted variant caller for microbial genomes"
+    DESCRIPTION "Python bindings to Bifrost with a NetworkX compatible API"
     LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -19,6 +19,5 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 endif()
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
-    message("Enabling testing")
     add_subdirectory(tests)
 endif()

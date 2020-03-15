@@ -10,7 +10,6 @@ namespace py = pybind11;
 namespace pyfrost {
 
 void define_Unitig(py::module& m) {
-    py::class_<Unitig
 }
 
 }
