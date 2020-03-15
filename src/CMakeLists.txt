@@ -1,5 +1,4 @@
 pybind11_add_module(bifrost_python
-    type_conversions.h
     Kmer.h
     Unitig.h
     UnitigDataDict.h
