@@ -6,6 +6,7 @@
 
 #include "Pyfrost.h"
 #include "NodeView.h"
+#include "AdjacencyProxy.h"
 
 #ifndef PYFROST_BIFROSTGRAPH_H
 #define PYFROST_BIFROSTGRAPH_H
@@ -19,16 +20,24 @@ namespace pyfrost {
 
 class BifrostDiGraph {
 public:
-    BifrostDiGraph() : nodes(dbg) { }
-    BifrostDiGraph(BifrostDiGraph const& o) : dbg(o.dbg), nodes(dbg) { }
-    BifrostDiGraph(BifrostDiGraph&& o) noexcept : dbg(std::move(o.dbg)), nodes(dbg) { }
-    explicit BifrostDiGraph(PyfrostCCDBG&& dbg) noexcept : dbg(std::move(dbg)), nodes(dbg) { }
+    BifrostDiGraph() : nodes(dbg),
+        succ(dbg), pred(dbg, AdjacencyType::PREDECESSORS) { }
+    BifrostDiGraph(BifrostDiGraph const& o) : dbg(o.dbg), nodes(dbg),
+        succ(dbg), pred(dbg, AdjacencyType::PREDECESSORS) { }
+    BifrostDiGraph(BifrostDiGraph&& o) noexcept : dbg(std::move(o.dbg)), nodes(dbg),
+        succ(o.dbg), pred(o.dbg, AdjacencyType::PREDECESSORS) { }
+    explicit BifrostDiGraph(PyfrostCCDBG&& dbg) noexcept : dbg(std::move(dbg)), nodes(dbg),
+        succ(dbg), pred(dbg, AdjacencyType::PREDECESSORS) { }
 
-    inline NodeView& getNodeView() { return nodes; }
+    inline NodeView const& getNodeView() const { return nodes; }
+    inline AdjacencyProxy const& getSuccessorsProxy() const { return succ; }
+    inline AdjacencyProxy const& getPredecessorsProxy() const { return pred; }
 
 private:
     PyfrostCCDBG dbg;
     NodeView nodes;
+    AdjacencyProxy succ;
+    AdjacencyProxy pred;
 
 };
 
@@ -110,7 +119,18 @@ void define_BifrostDiGraph(py::module& m) {
         .def(py::init<>())
         .def(py::init<BifrostDiGraph const&>())
 
-        .def_property_readonly("nodes", &BifrostDiGraph::getNodeView, "Get nodes in the graph.");
+        .def("__len__", [] (BifrostDiGraph const& self) {
+            size_t num = 0;
+            for(auto const& unitig : self.getNodeView()) {
+                ++num;
+            }
+
+            return num;
+        })
+
+        .def_property_readonly("nodes", &BifrostDiGraph::getNodeView, "Get nodes in the graph.")
+        .def_property_readonly("succ", &BifrostDiGraph::getSuccessorsProxy, "Get successors keyed by node.")
+        .def_property_readonly("pred", &BifrostDiGraph::getPredecessorsProxy, "Get predecessors keyed by node.");
 
     m.def("load", &load, "Load an existing colored Bifrost graph from a file.");
     m.def("build", &build, "Build a colored compacted Bifrost graph from references and sequencing data.");

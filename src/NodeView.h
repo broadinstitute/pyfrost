@@ -42,14 +42,14 @@ public:
     /**
      * Iterate over unitigs (nodes)
      */
-    inline PyfrostCCDBG::iterator begin() {
+    inline PyfrostCCDBG::iterator begin() const {
         return dbg.begin();
     }
 
     /**
      * End of the unitig (node) iterator
      */
-    inline PyfrostCCDBG::iterator end() {
+    inline PyfrostCCDBG::iterator end() const {
         return dbg.end();
     }
 
@@ -64,7 +64,7 @@ void define_NodeView(py::module& m) {
         .def("__getitem__", py::overload_cast<Kmer const&>(&NodeView::find_node), py::is_operator())
 
         // Iterate over all nodes
-        .def("__iter__", [](NodeView& self) {
+        .def("__iter__", [](NodeView const& self) {
             return py::make_iterator(self.begin(), self.end());
         }, py::keep_alive<0, 1>());
 }

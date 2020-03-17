@@ -10,6 +10,7 @@
 #include "Unitig.h"
 #include "KmerOnUnitig.h"
 #include "NodeView.h"
+#include "AdjacencyProxy.h"
 #include "BifrostDiGraph.h"
 
 namespace py = pybind11;
@@ -32,5 +33,6 @@ PYBIND11_MODULE(bifrost_python, m) {
     pyfrost::define_Unitig(m);
     pyfrost::define_KmerOnUnitig(m);
     pyfrost::define_NodeView(m);
+    pyfrost::define_AdjacencyProxy(m);
     pyfrost::define_BifrostDiGraph(m);
 }
