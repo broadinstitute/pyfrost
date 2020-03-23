@@ -3,3 +3,7 @@ cmake-build-release
 .DS_Store
 .idea
 .o
+*.egg-info/
+*.dylib
+build
+*.so
