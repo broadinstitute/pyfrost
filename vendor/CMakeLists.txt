@@ -1,10 +1,7 @@
 # Include Bifrost
 add_subdirectory(bifrost)
 target_compile_options(bifrost_static PUBLIC "-fvisibility=hidden")
-target_compile_options(bifrost_dynamic PUBLIC "-fvisibility=hidden")
-
 target_link_options(bifrost_static PUBLIC "-fvisibility=hidden")
-target_link_options(bifrost_dynamic PUBLIC "-fvisibility=hidden")
 
 # Include pybind11
 add_subdirectory(pybind11)
