@@ -24,6 +24,8 @@ def test_graph_structure(mccortex):
     n2 = g.nodes['TCGAA']
     assert str(n2) == "TCGAAATCAGT"
 
+    assert n2 in g.succ[n]
+
     succ2 = [s for s in g.succ[n2]]
     assert len(succ2) == 0
     assert set(str(s) for s in g.succ[n2]) == set()

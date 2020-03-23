@@ -58,17 +58,27 @@ TEST_CASE("Test McCortex example", "[dbg_construction]") {
         REQUIRE(num_succ == 2);
 
         // The reverse complement of the above unitig shouldn't have any successors
-        start_unitig = test_graph.find(Kmer("TCGAA"), true);
+        auto start_unitig_rev = test_graph.find(Kmer("TCGAA"), true);
 
-        unitig_str = start_unitig.referenceUnitigToString();
-        if(!start_unitig.strand) {
+        // This reverse complement unitig should be one of the successors of the original `start_unitig`.
+        int matches = 0;
+        for(auto const& succ : start_unitig.getSuccessors()) {
+            if(succ == start_unitig_rev) {
+                ++matches;
+            }
+        }
+
+        REQUIRE(matches == 1);
+
+        unitig_str = start_unitig_rev.referenceUnitigToString();
+        if(!start_unitig_rev.strand) {
             unitig_str = reverse_complement(unitig_str);
         }
 
         REQUIRE(unitig_str == "TCGAAATCAGT");
 
         num_succ = 0;
-        for(auto const& succ : start_unitig.getSuccessors()) {
+        for(auto const& succ : start_unitig_rev.getSuccessors()) {
             ++num_succ;
 
             auto succ_str = succ.referenceUnitigToString();
