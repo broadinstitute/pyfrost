@@ -15,42 +15,93 @@ enum class AdjacencyType {
     PREDECESSORS
 };
 
-class AdjacencyView {
+class AdjacencyViewBase {
+public:
+    explicit AdjacencyViewBase(PyfrostColoredUMap const& unitig) : unitig(unitig) {}
+    virtual ~AdjacencyViewBase() { }
+
+protected:
+    PyfrostColoredUMap unitig;
 
 public:
-    explicit AdjacencyView(PyfrostColoredUMap const& unitig, AdjacencyType type) : unitig(unitig) {}
+    inline virtual decltype(unitig.getSuccessors().begin()) begin() const = 0;
+    inline virtual decltype(unitig.getSuccessors().end()) end() const = 0;
 
-    inline auto begin() const {
-        if(type == AdjacencyType::SUCCESSORS) {
-            return unitig.getSuccessors().begin();
+    bool contains(PyfrostColoredUMap const& o) {
+        // We have at most 4 neighbors so this should be quick enough, and could be considered constant time.
+        for(auto const& neighbor : *this) {
+            if(o == neighbor) {
+                return true;
+            }
         }
-        else {
-            return unitig.getPredecessors().begin();
-        }
+
+        return false;
     }
 
-    inline auto end() const {
-        if(type == AdjacencyType::SUCCESSORS) {
-            return unitig.getSuccessors().end();
-        } else {
-            return unitig.getPredecessors().end();
-        }
+    bool contains(Kmer const& kmer) {
+        auto o = unitig.getGraph()->find(kmer, true);
+        return contains(o);
     }
 
-private:
-    PyfrostColoredUMap const& unitig;
-    AdjacencyType type;
+    bool contains(const char* kmer) {
+        auto o = unitig.getGraph()->find(Kmer(kmer), true);
+        return contains(o);
+    }
 
+    py::dict getEdgeDict(PyfrostColoredUMap const& o) {
+        return py::dict();
+    }
+
+    size_t numNeigbors() const {
+        size_t num = 0;
+        for(auto const& n : *this) {
+            ++num;
+        }
+
+        return num;
+    }
+
+};
+
+class SuccessorView : public AdjacencyViewBase {
+public:
+    explicit SuccessorView(PyfrostColoredUMap const& unitig) : AdjacencyViewBase(unitig) { }
+
+    inline virtual decltype(unitig.getSuccessors().begin()) begin() const {
+        return unitig.getSuccessors().begin();
+    }
+
+    inline virtual decltype(unitig.getSuccessors().end()) end() const {
+        return unitig.getSuccessors().end();
+    }
+};
+
+class PredecessorView : public AdjacencyViewBase {
+public:
+    explicit PredecessorView(PyfrostColoredUMap const& unitig) : AdjacencyViewBase(unitig) { }
+
+    inline virtual decltype(unitig.getPredecessors().begin()) begin() const {
+        return unitig.getPredecessors().begin();
+    }
+
+    inline virtual decltype(unitig.getPredecessors().end()) end() const {
+        return unitig.getPredecessors().end();
+    }
 };
 
 
 class AdjacencyProxy {
 public:
-    explicit AdjacencyProxy(PyfrostCCDBG& dbg) : dbg(dbg), type(AdjacencyType::SUCCESSORS) { }
     AdjacencyProxy(PyfrostCCDBG& dbg, AdjacencyType type) : dbg(dbg), type(type) { }
 
-    inline AdjacencyView* getView(PyfrostColoredUMap const& unitig) {
-        return new AdjacencyView(unitig, type);
+    inline AdjacencyViewBase* getView(PyfrostColoredUMap const& unitig) {
+        if(type == AdjacencyType::SUCCESSORS) {
+            return new SuccessorView(unitig);
+        } else if(type == AdjacencyType::PREDECESSORS) {
+            return new PredecessorView(unitig);
+        } else {
+            throw std::runtime_error("Unexpected value for AdjacencyProxy::type");
+        }
     }
 
     inline auto begin() const {
@@ -67,13 +118,16 @@ public:
 
     inline bool contains(Kmer const& kmer) {
         auto um = dbg.find(kmer, true);
-        return this->contains(um);
+        return contains(um);
     }
 
     inline bool contains(char const* kmer) {
-        Kmer km(kmer);
-        auto um = dbg.find(km, true);
-        return this->contains(um);
+        auto um = dbg.find(Kmer(kmer), true);
+        return contains(um);
+    }
+
+    size_t numNodes() const {
+        return dbg.size();
     }
 
 private:
@@ -81,21 +135,45 @@ private:
     AdjacencyType type;
 };
 
+
 void define_AdjacencyProxy(py::module& m) {
-    py::class_<AdjacencyView>(m, "AdjacencyView")
-        .def("__iter__", [] (AdjacencyView const& self) {
+    py::enum_<AdjacencyType>(m, "AdjacencyType")
+        .value("SUCCESSORS", AdjacencyType::SUCCESSORS)
+        .value("PREDECESSORS", AdjacencyType::PREDECESSORS);
+
+    py::class_<AdjacencyViewBase>(m, "AdjacencyViewBase")
+        .def("__len__", &AdjacencyViewBase::numNeigbors, py::is_operator())
+
+        .def("__contains__", py::overload_cast<char const*>(&AdjacencyViewBase::contains), py::is_operator())
+        .def("__contains__", py::overload_cast<Kmer const&>(&AdjacencyViewBase::contains), py::is_operator())
+        .def("__contains__", py::overload_cast<PyfrostColoredUMap const&>(&AdjacencyViewBase::contains), py::is_operator())
+
+        .def("__getitem__", &AdjacencyViewBase::getEdgeDict);
+
+    py::class_<SuccessorView, AdjacencyViewBase>(m, "SuccessorView")
+        .def(py::init<PyfrostColoredUMap const&>())
+        .def("__iter__", [] (SuccessorView const& self) {
+            return py::make_iterator(self.begin(), self.end());
+        }, py::keep_alive<0, 1>());
+
+    py::class_<PredecessorView, AdjacencyViewBase>(m, "PredecessorView")
+        .def(py::init<PyfrostColoredUMap const&>())
+        .def("__iter__", [] (PredecessorView const& self) {
             return py::make_iterator(self.begin(), self.end());
         }, py::keep_alive<0, 1>());
 
     py::class_<AdjacencyProxy>(m, "AdjacencyProxy")
-        .def("__getitem__", &AdjacencyProxy::getView, py::is_operator())
-        .def("__iter__", [] (AdjacencyProxy const& self) {
-            return py::make_iterator(self.begin(), self.end());
-        }, py::keep_alive<0, 1>())
+        .def("__len__", &AdjacencyProxy::numNodes, py::is_operator())
 
         .def("__contains__", py::overload_cast<PyfrostColoredUMap const&>(&AdjacencyProxy::contains))
         .def("__contains__", py::overload_cast<Kmer const&>(&AdjacencyProxy::contains))
-        .def("__contains__", py::overload_cast<char const*>(&AdjacencyProxy::contains));
+        .def("__contains__", py::overload_cast<char const*>(&AdjacencyProxy::contains))
+
+        .def("__getitem__", &AdjacencyProxy::getView, py::is_operator())
+
+        .def("__iter__", [] (AdjacencyProxy const& self) {
+            return py::make_iterator(self.begin(), self.end(), py::return_value_policy::copy);
+        }, py::keep_alive<0, 1>());
 }
 
 }

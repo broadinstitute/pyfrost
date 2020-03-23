@@ -14,11 +14,11 @@ class NodeView {
 public:
     explicit NodeView(PyfrostCCDBG& dbg) : dbg(dbg) { }
 
-    inline PyfrostColoredUMap find_kmer(Kmer const& kmer) {
+    inline PyfrostColoredUMap findKmer(Kmer const& kmer) {
         return dbg.find(kmer, false);
     }
 
-    inline PyfrostColoredUMap find_kmer(char const* kmer) {
+    inline PyfrostColoredUMap findKmer(char const* kmer) {
         Kmer km = Kmer(kmer);
         return dbg.find(km, false);
     }
@@ -26,17 +26,33 @@ public:
     /**
      * This function searches for a unitig which starts with the given kmer.
      *
-     * This function differs from `find_kmer` because it doesn't consider internal k-mers.
+     * This function differs from `findKmer` because it doesn't consider internal k-mers.
      *
      * @param kmer
      */
-    inline PyfrostColoredUMap find_node(Kmer const& kmer) {
-        return dbg.find(kmer, true);
+    inline PyfrostColoredUMap findNode(Kmer const& kmer) {
+        auto unitig = dbg.find(kmer, true);
+
+        if(unitig.isEmpty) {
+            throw std::out_of_range("Node not found.");
+        }
+
+        return unitig;
     }
 
-    inline PyfrostColoredUMap find_node(char const* kmer) {
-        Kmer km = Kmer(kmer);
-        return dbg.find(km, true);
+    inline PyfrostColoredUMap findNode(char const* kmer) {
+        return findNode(Kmer(kmer));
+    }
+
+    /**
+     * Return itself when calling with an existing kmer on unitig
+     */
+    inline PyfrostColoredUMap findNode(PyfrostColoredUMap const& unitig) {
+        if(unitig.isEmpty || !(unitig.dist == 0 || unitig.dist == unitig.len)) {
+            throw std::out_of_range("Node not found.");
+        }
+
+        return unitig;
     }
 
     /**
@@ -53,6 +69,10 @@ public:
         return dbg.end();
     }
 
+    size_t numNodes() const {
+        return dbg.size();
+    }
+
 private:
     PyfrostCCDBG& dbg;
 };
@@ -60,8 +80,11 @@ private:
 void define_NodeView(py::module& m) {
     py::class_<NodeView>(m, "NodeView")
         // Access nodes with [] operator overloading
-        .def("__getitem__", py::overload_cast<char const*>(&NodeView::find_node), py::is_operator())
-        .def("__getitem__", py::overload_cast<Kmer const&>(&NodeView::find_node), py::is_operator())
+        .def("__getitem__", py::overload_cast<char const*>(&NodeView::findNode), py::is_operator())
+        .def("__getitem__", py::overload_cast<Kmer const&>(&NodeView::findNode), py::is_operator())
+        .def("__getitem__", py::overload_cast<PyfrostColoredUMap const&>(&NodeView::findNode), py::is_operator())
+
+        .def("__len__", &NodeView::numNodes, py::is_operator())
 
         // Iterate over all nodes
         .def("__iter__", [](NodeView const& self) {

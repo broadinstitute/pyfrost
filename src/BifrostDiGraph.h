@@ -21,17 +21,38 @@ namespace pyfrost {
 class BifrostDiGraph {
 public:
     BifrostDiGraph() : nodes(dbg),
-        succ(dbg), pred(dbg, AdjacencyType::PREDECESSORS) { }
+        succ(dbg, AdjacencyType::SUCCESSORS),
+        pred(dbg, AdjacencyType::PREDECESSORS) { }
     BifrostDiGraph(BifrostDiGraph const& o) : dbg(o.dbg), nodes(dbg),
-        succ(dbg), pred(dbg, AdjacencyType::PREDECESSORS) { }
+        succ(dbg, AdjacencyType::SUCCESSORS),
+        pred(dbg, AdjacencyType::PREDECESSORS) { }
     BifrostDiGraph(BifrostDiGraph&& o) noexcept : dbg(std::move(o.dbg)), nodes(dbg),
-        succ(o.dbg), pred(o.dbg, AdjacencyType::PREDECESSORS) { }
-    explicit BifrostDiGraph(PyfrostCCDBG&& dbg) noexcept : dbg(std::move(dbg)), nodes(dbg),
-        succ(dbg), pred(dbg, AdjacencyType::PREDECESSORS) { }
+        succ(dbg, AdjacencyType::SUCCESSORS),
+        pred(dbg, AdjacencyType::PREDECESSORS) { }
 
-    inline NodeView const& getNodeView() const { return nodes; }
-    inline AdjacencyProxy const& getSuccessorsProxy() const { return succ; }
-    inline AdjacencyProxy const& getPredecessorsProxy() const { return pred; }
+    explicit BifrostDiGraph(PyfrostCCDBG&& o) noexcept : dbg(std::move(o)), nodes(dbg),
+        succ(dbg, AdjacencyType::SUCCESSORS),
+        pred(dbg, AdjacencyType::PREDECESSORS) { }
+
+    inline NodeView const& getNodeView() const {
+        return nodes;
+    }
+
+    inline AdjacencyProxy const& getSuccessorsProxy() const {
+        return succ;
+    }
+
+    inline AdjacencyProxy const& getPredecessorsProxy() const {
+        return pred;
+    }
+
+    inline AdjacencyViewBase* getSuccessors(PyfrostColoredUMap const& unitig) {
+        return succ.getView(unitig);
+    }
+
+    inline size_t numNodes() const {
+        return dbg.size();
+    }
 
 private:
     PyfrostCCDBG dbg;
@@ -120,22 +141,24 @@ void define_BifrostDiGraph(py::module& m) {
         .def(py::init<BifrostDiGraph const&>())
 
         .def("__len__", [] (BifrostDiGraph const& self) {
-            size_t num = 0;
-            for(auto const& unitig : self.getNodeView()) {
-                ++num;
-            }
-
-            return num;
+            return self.numNodes();
         })
 
-        .def_property_readonly("nodes", &BifrostDiGraph::getNodeView, "Get nodes in the graph.")
-        .def_property_readonly("succ", &BifrostDiGraph::getSuccessorsProxy, "Get successors keyed by node.")
-        .def_property_readonly("pred", &BifrostDiGraph::getPredecessorsProxy, "Get predecessors keyed by node.");
+        .def_property_readonly("nodes", &BifrostDiGraph::getNodeView,
+            "Get nodes in the graph.")
+        .def_property_readonly("succ", &BifrostDiGraph::getSuccessorsProxy,
+            "Get successors keyed by node.")
+        .def_property_readonly("pred", &BifrostDiGraph::getPredecessorsProxy,
+            "Get predecessors keyed by node.");
 
-    m.def("load", &load, "Load an existing colored Bifrost graph from a file.");
-    m.def("build", &build, "Build a colored compacted Bifrost graph from references and sequencing data.");
-    m.def("build_from_refs", &build_from_refs, "Build a colored compacted Bifrost graph from reference FASTA files.");
-    m.def("build_from_samples", &build_from_samples, "Build a colored compacted Bifrost graph from sequencing sample files (FASTQ).");
+    m.def("load", &load, py::return_value_policy::move,
+        "Load an existing colored Bifrost graph from a file.");
+    m.def("build", &build, py::return_value_policy::move,
+        "Build a colored compacted Bifrost graph from references and sequencing data.");
+    m.def("build_from_refs", &build_from_refs, py::return_value_policy::move,
+        "Build a colored compacted Bifrost graph from reference FASTA files.");
+    m.def("build_from_samples", &build_from_samples, py::return_value_policy::move,
+        "Build a colored compacted Bifrost graph from sequencing sample files (FASTQ).");
 }
 
 }

@@ -38,6 +38,12 @@ void define_Kmer(py::module &m) {
         // Other functions
         .def("__str__", [] (const Kmer& self) { return self.toString(); })
         .def("__repr__", [] (const Kmer& self) { return "<Kmer '" + self.toString() + "'>"; })
+        .def("__bool__", [] (const Kmer& self) {
+            Kmer empty;
+            empty.set_empty();
+
+            return self != empty;
+        })
         .def("__hash__", [] (const Kmer& self) { return self.hash(); })
         .def("hash", &Kmer::hash, "Get the hash value for this k-mer", py::arg("seed") = 0);
 
