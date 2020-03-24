@@ -10,9 +10,10 @@ from distutils.version import LooseVersion
 
 
 class CMakeExtension(Extension):
-    def __init__(self, name, sourcedir=''):
+    def __init__(self, name, sourcedir='', target=''):
         Extension.__init__(self, name, sources=[])
         self.sourcedir = os.path.abspath(sourcedir)
+        self.target = target
 
 
 class CMakeBuild(build_ext):
@@ -39,6 +40,9 @@ class CMakeBuild(build_ext):
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
 
+        if ext.target:
+            build_args.extend(['--target', ext.target])
+
         if platform.system() == "Windows":
             cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
             if sys.maxsize > 2**32:
@@ -63,7 +67,7 @@ setup(
     author_email='lvandijk@broadinstitute.org',
     description='A Python interface to the Bifrost colored compacted De Bruijn graph library with a networkx like API',
     long_description='',
-    ext_modules=[CMakeExtension('bifrost_python')],
+    ext_modules=[CMakeExtension('bifrost_python', target='bifrost_python')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
 )
