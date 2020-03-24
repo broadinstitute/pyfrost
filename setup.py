@@ -3,10 +3,11 @@ import re
 import sys
 import platform
 import subprocess
-
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 from distutils.version import LooseVersion
+
+import versioneer
 
 
 class CMakeExtension(Extension):
@@ -44,7 +45,8 @@ class CMakeBuild(build_ext):
             build_args.extend(['--target', ext.target])
 
         if platform.system() == "Windows":
-            cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
+            cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(),
+                                                                           extdir)]
             if sys.maxsize > 2**32:
                 cmake_args += ['-A', 'x64']
             build_args += ['--', '/m']
@@ -53,8 +55,8 @@ class CMakeBuild(build_ext):
             build_args += ['--', '-j2']
 
         env = os.environ.copy()
-        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
-                                                              self.distribution.get_version())
+        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(
+            env.get('CXXFLAGS', ''), self.distribution.get_version())
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
@@ -62,12 +64,17 @@ class CMakeBuild(build_ext):
 
 setup(
     name='pyfrost',
-    version='0.1',
+    version=versioneer.get_version(),
     author='Lucas van Dijk',
     author_email='lvandijk@broadinstitute.org',
-    description='A Python interface to the Bifrost colored compacted De Bruijn graph library with a networkx like API',
+    description='A Python interface to the Bifrost colored compacted De Bruijn graph '
+                'library with a NetworkX like API',
     long_description='',
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
+    include_package_data=True,
+
     ext_modules=[CMakeExtension('bifrost_python', target='bifrost_python')],
-    cmdclass=dict(build_ext=CMakeBuild),
+    cmdclass=dict(build_ext=CMakeBuild, **versioneer.get_cmdclass()),
     zip_safe=False,
 )

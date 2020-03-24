@@ -1,0 +1,2 @@
+include versioneer.py
+recursive-include src *.py *.h *.cpp *.txt

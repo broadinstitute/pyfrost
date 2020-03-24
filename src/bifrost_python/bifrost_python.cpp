@@ -35,4 +35,7 @@ PYBIND11_MODULE(bifrost_python, m) {
     pyfrost::define_NodeView(m);
     pyfrost::define_AdjacencyProxy(m);
     pyfrost::define_BifrostDiGraph(m);
+
+    m.def("reverse_complement", py::overload_cast<char const*>(&reverse_complement),
+        "Return the reverse complement of a DNA string");
 }

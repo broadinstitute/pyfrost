@@ -7,3 +7,6 @@ cmake-build-release
 *.dylib
 build
 *.so
+.pytest_cache
+dist
+__pycache__
