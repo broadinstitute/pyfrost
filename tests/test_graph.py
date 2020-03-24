@@ -8,7 +8,7 @@ def mccortex():
     return pyfrost.build_from_refs(['data/mccortex.fasta'], k=5, g=3)
 
 
-def test_graph_structure(mccortex):
+def test_node_access(mccortex):
     g = mccortex
 
     assert len(g) == 6
@@ -20,6 +20,18 @@ def test_graph_structure(mccortex):
     with pytest.raises(IndexError):
         _ = g.nodes['GGGGG']
 
+
+def test_graph_attr(mccortex):
+    g = mccortex
+
+    g.graph['test'] = 1
+    assert g.graph['test'] == 1
+
+
+def test_successors(mccortex):
+    g = mccortex
+
+    n = g.nodes['ACTGA']
     succ = [s for s in g.succ[n]]
     assert len(succ) == 2
     assert set(str(s) for s in g.succ[n]) == {"TCGAAATCAGT", "TCGAT"}

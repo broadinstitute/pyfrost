@@ -54,11 +54,16 @@ public:
         return dbg.size();
     }
 
+    inline py::dict& getGraphAttributes() {
+        return attr;
+    }
+
 private:
     PyfrostCCDBG dbg;
     NodeView nodes;
     AdjacencyProxy succ;
     AdjacencyProxy pred;
+    py::dict attr;
 
 };
 
@@ -154,8 +159,12 @@ void define_BifrostDiGraph(py::module& m) {
             "Get nodes in the graph.")
         .def_property_readonly("succ", &BifrostDiGraph::getSuccessorsProxy,
             "Get successors keyed by node.")
+        .def_property_readonly("adj", &BifrostDiGraph::getSuccessorsProxy,
+            "Get successors keyed by node.")
         .def_property_readonly("pred", &BifrostDiGraph::getPredecessorsProxy,
-            "Get predecessors keyed by node.");
+            "Get predecessors keyed by node.")
+        .def_property_readonly("graph", &BifrostDiGraph::getGraphAttributes,
+            "Get the graph attributes dictionary.");
 
     m.def("load", &load, py::return_value_policy::move,
         "Load an existing colored Bifrost graph from a file.");
