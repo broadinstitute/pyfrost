@@ -3,6 +3,6 @@
 =====================================================================
 """
 
-from bifrost_python import reverse_complement, Kmer
+from bifrost_python import reverse_complement, Kmer, Strand
 
-__all__ = ['reverse_complement', 'Kmer']
+__all__ = ['reverse_complement', 'Kmer', 'Strand']

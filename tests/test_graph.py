@@ -3,11 +3,6 @@ import pytest
 import pyfrost
 
 
-@pytest.fixture
-def mccortex():
-    return pyfrost.build_from_refs(['data/mccortex.fasta'], k=5, g=3)
-
-
 def test_node_access(mccortex):
     g = mccortex
 
@@ -17,11 +12,13 @@ def test_node_access(mccortex):
     n = g.nodes['ACTGA']
     assert str(n) == "ACTGATTTCGA"
     assert n.is_full_mapping
+    assert n.strand == pyfrost.Strand.REVERSE
 
     # Same node as above, but then reverse complement
     n2 = g.nodes['TCGAA']
     assert str(n2) == "TCGAAATCAGT"
     assert n2.is_full_mapping
+    assert n2.strand == pyfrost.Strand.FORWARD
 
     with pytest.raises(IndexError):
         _ = g.nodes['GGGGG']
@@ -29,6 +26,8 @@ def test_node_access(mccortex):
 
 def test_graph_attr(mccortex):
     g = mccortex
+
+    assert g.graph['k'] == 5
 
     g.graph['test'] = 1
     assert g.graph['test'] == 1
@@ -79,8 +78,6 @@ def test_predecessors(mccortex):
     assert set(str(p) for p in g.pred[n]) == set()
 
     n2 = g.nodes['TCGAA']
-    print([repr(p) for p in g.pred[n2]])
-    print(repr(n))
 
     assert n in g.pred[n2]
     assert n2 not in g.pred[n2]

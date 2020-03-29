@@ -78,7 +78,7 @@ void define_UnitigMapping(py::module& m) {
             }
 
             repr << " MapPos=" << self.dist;
-            repr << " MapLen=" << self.len;
+            repr << " MapLen=" << mappedStringLength(self);
             repr << " UnitigSize=" << self.size;
             repr << " Strand=" << (self.strand ? "forward" : "reverse") << ">";
 
@@ -88,8 +88,9 @@ void define_UnitigMapping(py::module& m) {
         .def(py::self == py::self)
         .def(py::self != py::self)
         .def("__hash__", [] (PyfrostColoredUMap const& self) {
-            // TODO: replace with better hash method
-            return self.getUnitigHead().hash();
+            PyfrostColoredUMap::hasher hasher;
+
+            return hasher(self);
         })
 
         .def("__bool__", [] (PyfrostColoredUMap const& self) { return !self.isEmpty; });

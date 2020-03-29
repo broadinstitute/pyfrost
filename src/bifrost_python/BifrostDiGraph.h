@@ -22,19 +22,31 @@ class BifrostDiGraph {
 public:
     BifrostDiGraph() : nodes(dbg),
         succ(dbg, AdjacencyType::SUCCESSORS),
-        pred(dbg, AdjacencyType::PREDECESSORS) { }
+        pred(dbg, AdjacencyType::PREDECESSORS) {
+
+        populateAttrs();
+    }
     BifrostDiGraph(BifrostDiGraph const& o) : dbg(o.dbg), nodes(dbg),
         succ(dbg, AdjacencyType::SUCCESSORS),
         pred(dbg, AdjacencyType::PREDECESSORS),
-        attr(o.attr) { }
+        attr(o.attr) {
+
+        populateAttrs();
+    }
     BifrostDiGraph(BifrostDiGraph&& o) noexcept : dbg(std::move(o.dbg)), nodes(dbg),
         succ(dbg, AdjacencyType::SUCCESSORS),
         pred(dbg, AdjacencyType::PREDECESSORS),
-        attr(std::move(o.attr)) { }
+        attr(std::move(o.attr)) {
+
+        populateAttrs();
+    }
 
     explicit BifrostDiGraph(PyfrostCCDBG&& o) noexcept : dbg(std::move(o)), nodes(dbg),
         succ(dbg, AdjacencyType::SUCCESSORS),
-        pred(dbg, AdjacencyType::PREDECESSORS) { }
+        pred(dbg, AdjacencyType::PREDECESSORS) {
+
+        populateAttrs();
+    }
 
     inline NodeView const& getNodeView() const {
         return nodes;
@@ -81,6 +93,10 @@ public:
     }
 
 private:
+    void populateAttrs() {
+        attr["k"] = dbg.getK();
+    }
+
     PyfrostCCDBG dbg;
     NodeView nodes;
     AdjacencyProxy succ;
@@ -213,6 +229,7 @@ void define_BifrostDiGraph(py::module& m) {
             "Get successors keyed by node.")
         .def_property_readonly("pred", &BifrostDiGraph::getPredecessorsProxy,
             "Get predecessors keyed by node.")
+
         .def_property_readonly("graph", &BifrostDiGraph::getGraphAttributes,
             "Get the graph attributes dictionary.");
 
