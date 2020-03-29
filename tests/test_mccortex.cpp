@@ -34,7 +34,7 @@ TEST_CASE("Test McCortex example", "[dbg_construction]") {
     }
 
     SECTION("Check successors of an unitig") {
-        auto start_unitig = test_graph.find(Kmer("ACTGA"), true);
+        auto start_unitig = test_graph.find(Kmer("ACTGA"), true).mappingToFullUnitig();
 
         auto unitig_str = start_unitig.referenceUnitigToString();
         if(!start_unitig.strand) {
@@ -58,7 +58,7 @@ TEST_CASE("Test McCortex example", "[dbg_construction]") {
         REQUIRE(num_succ == 2);
 
         // The reverse complement of the above unitig shouldn't have any successors
-        auto start_unitig_rev = test_graph.find(Kmer("TCGAA"), true);
+        auto start_unitig_rev = test_graph.find(Kmer("TCGAA"), true).mappingToFullUnitig();
 
         // This reverse complement unitig should be one of the successors of the original `start_unitig`.
         int matches = 0;
