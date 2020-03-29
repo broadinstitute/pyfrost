@@ -79,7 +79,7 @@ void define_NodeView(py::module& m) {
 
         // Iterate over all nodes
         .def("__iter__", [](NodeView const& self) {
-            return py::make_iterator(self.begin(), self.end());
+            return py::make_iterator<py::return_value_policy::copy>(self.begin(), self.end());
         }, py::keep_alive<0, 1>());
 }
 

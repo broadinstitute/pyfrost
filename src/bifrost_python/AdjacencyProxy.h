@@ -165,13 +165,13 @@ void define_AdjacencyProxy(py::module& m) {
     py::class_<SuccessorView, AdjacencyViewBase>(m, "SuccessorView")
         .def(py::init<PyfrostColoredUMap const&>())
         .def("__iter__", [] (SuccessorView const& self) {
-            return py::make_iterator(self.begin(), self.end());
+            return py::make_iterator<py::return_value_policy::copy>(self.begin(), self.end());
         }, py::keep_alive<0, 1>());
 
     py::class_<PredecessorView, AdjacencyViewBase>(m, "PredecessorView")
         .def(py::init<PyfrostColoredUMap const&>())
         .def("__iter__", [] (PredecessorView const& self) {
-            return py::make_iterator(self.begin(), self.end());
+            return py::make_iterator<py::return_value_policy::copy>(self.begin(), self.end());
         }, py::keep_alive<0, 1>());
 
     py::class_<AdjacencyProxy>(m, "AdjacencyProxy")
@@ -186,7 +186,7 @@ void define_AdjacencyProxy(py::module& m) {
         .def("__getitem__", py::overload_cast<char const*>(&AdjacencyProxy::getView), py::is_operator())
 
         .def("__iter__", [] (AdjacencyProxy const& self) {
-            return py::make_iterator(self.begin(), self.end(), py::return_value_policy::copy);
+            return py::make_iterator<py::return_value_policy::copy>(self.begin(), self.end());
         }, py::keep_alive<0, 1>());
 }
 

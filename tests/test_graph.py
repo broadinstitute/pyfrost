@@ -104,6 +104,18 @@ def test_predecessors(mccortex):
 def test_iteration(mccortex):
     g = mccortex
 
+    nodes = [n for n in g]
+    nodes_set = set(str(n) for n in nodes)
+
+    assert nodes_set == {
+        "TCGAAATCAGT",
+        "CCACGGTGG",
+        "CGATGC",
+        "ATGCGAT",
+        "GTGGCAT",
+        "ATCGA",
+    }
+
     node_set = set()
     for n in g:
         node_set.add(str(n))

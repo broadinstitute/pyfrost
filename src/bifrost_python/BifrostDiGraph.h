@@ -216,7 +216,8 @@ void define_BifrostDiGraph(py::module& m) {
         })
 
         .def("__iter__", [] (BifrostDiGraph const& self) {
-            return py::make_iterator(self.getSuccessorsProxy().begin(), self.getSuccessorsProxy().end());
+            return py::make_iterator<py::return_value_policy::copy>(self.getSuccessorsProxy().begin(),
+                self.getSuccessorsProxy().end());
         })
 
         .def("number_of_nodes", &BifrostDiGraph::numNodes, "Get the number of nodes.")
