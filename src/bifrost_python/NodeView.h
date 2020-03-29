@@ -14,15 +14,6 @@ class NodeView {
 public:
     explicit NodeView(PyfrostCCDBG& dbg) : dbg(dbg) { }
 
-    inline PyfrostColoredUMap findKmer(Kmer const& kmer) {
-        return dbg.find(kmer, false);
-    }
-
-    inline PyfrostColoredUMap findKmer(char const* kmer) {
-        Kmer km = Kmer(kmer);
-        return dbg.find(km, false);
-    }
-
     /**
      * This function searches for a unitig which starts with the given kmer.
      *
@@ -37,7 +28,7 @@ public:
             throw std::out_of_range("Node not found.");
         }
 
-        return unitig;
+        return unitig.mappingToFullUnitig();
     }
 
     inline PyfrostColoredUMap findNode(char const* kmer) {
@@ -52,7 +43,7 @@ public:
             throw std::out_of_range("Node not found.");
         }
 
-        return unitig;
+        return unitig.mappingToFullUnitig();
     }
 
     /**

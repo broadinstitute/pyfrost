@@ -1,8 +1,7 @@
 pybind11_add_module(bifrost_python
     Kmer.h
-    Unitig.h
     UnitigDataDict.h
-    KmerOnUnitig.h
+    UnitigMapping.h
     AdjacencyProxy.h
     Pyfrost.h
     NodeView.h

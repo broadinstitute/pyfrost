@@ -25,10 +25,12 @@ public:
         pred(dbg, AdjacencyType::PREDECESSORS) { }
     BifrostDiGraph(BifrostDiGraph const& o) : dbg(o.dbg), nodes(dbg),
         succ(dbg, AdjacencyType::SUCCESSORS),
-        pred(dbg, AdjacencyType::PREDECESSORS) { }
+        pred(dbg, AdjacencyType::PREDECESSORS),
+        attr(o.attr) { }
     BifrostDiGraph(BifrostDiGraph&& o) noexcept : dbg(std::move(o.dbg)), nodes(dbg),
         succ(dbg, AdjacencyType::SUCCESSORS),
-        pred(dbg, AdjacencyType::PREDECESSORS) { }
+        pred(dbg, AdjacencyType::PREDECESSORS),
+        attr(std::move(o.attr)) { }
 
     explicit BifrostDiGraph(PyfrostCCDBG&& o) noexcept : dbg(std::move(o)), nodes(dbg),
         succ(dbg, AdjacencyType::SUCCESSORS),
@@ -48,6 +50,26 @@ public:
 
     inline AdjacencyViewBase* getSuccessors(PyfrostColoredUMap const& unitig) {
         return succ.getView(unitig);
+    }
+
+    inline AdjacencyViewBase* getSuccessors(Kmer const& kmer) {
+        return succ.getView(kmer);
+    }
+
+    inline AdjacencyViewBase* getSuccessors(char const* kmer) {
+        return succ.getView(kmer);
+    }
+
+    inline AdjacencyViewBase* getPredecessors(PyfrostColoredUMap const& unitig) {
+        return pred.getView(unitig);
+    }
+
+    inline AdjacencyViewBase* getPredecessors(Kmer const& kmer) {
+        return pred.getView(kmer);
+    }
+
+    inline AdjacencyViewBase* getPredecessors(char const* kmer) {
+        return pred.getView(kmer);
     }
 
     inline size_t numNodes() const {
@@ -144,6 +166,34 @@ void define_BifrostDiGraph(py::module& m) {
     py::class_<BifrostDiGraph>(m, "BifrostDiGraph")
         .def(py::init<>())
         .def(py::init<BifrostDiGraph const&>())
+
+        .def("__getitem__", py::overload_cast<PyfrostColoredUMap const&>(&BifrostDiGraph::getSuccessors),
+            "Access a node")
+        .def("__getitem__", py::overload_cast<Kmer const&>(&BifrostDiGraph::getSuccessors),
+             "Access a node")
+        .def("__getitem__", py::overload_cast<char const*>(&BifrostDiGraph::getSuccessors),
+             "Access a node")
+
+        .def("neighbors", py::overload_cast<PyfrostColoredUMap const&>(&BifrostDiGraph::getSuccessors),
+             "Access a node")
+        .def("neighbors", py::overload_cast<Kmer const&>(&BifrostDiGraph::getSuccessors),
+             "Access a node")
+        .def("neighbors", py::overload_cast<char const*>(&BifrostDiGraph::getSuccessors),
+             "Access a node")
+
+        .def("successors", py::overload_cast<PyfrostColoredUMap const&>(&BifrostDiGraph::getSuccessors),
+             "Access a node")
+        .def("successors", py::overload_cast<Kmer const&>(&BifrostDiGraph::getSuccessors),
+             "Access a node")
+        .def("successors", py::overload_cast<char const*>(&BifrostDiGraph::getSuccessors),
+             "Access a node")
+
+        .def("predecessors", py::overload_cast<PyfrostColoredUMap const&>(&BifrostDiGraph::getPredecessors),
+             "Access a node")
+        .def("predecessors", py::overload_cast<Kmer const&>(&BifrostDiGraph::getPredecessors),
+             "Access a node")
+        .def("predecessors", py::overload_cast<char const*>(&BifrostDiGraph::getPredecessors),
+             "Access a node")
 
         .def("__len__", [] (BifrostDiGraph const& self) {
             return self.numNodes();
