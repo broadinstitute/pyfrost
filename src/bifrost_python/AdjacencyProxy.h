@@ -67,11 +67,11 @@ class SuccessorView : public AdjacencyViewBase {
 public:
     explicit SuccessorView(PyfrostColoredUMap const& unitig) : AdjacencyViewBase(unitig) { }
 
-    inline virtual decltype(unitig.getSuccessors().begin()) begin() const {
+    inline decltype(unitig.getSuccessors().begin()) begin() const override {
         return unitig.getSuccessors().begin();
     }
 
-    inline virtual decltype(unitig.getSuccessors().end()) end() const {
+    inline decltype(unitig.getSuccessors().end()) end() const override {
         return unitig.getSuccessors().end();
     }
 };
@@ -80,11 +80,11 @@ class PredecessorView : public AdjacencyViewBase {
 public:
     explicit PredecessorView(PyfrostColoredUMap const& unitig) : AdjacencyViewBase(unitig) { }
 
-    inline virtual decltype(unitig.getPredecessors().begin()) begin() const {
+    inline decltype(unitig.getPredecessors().begin()) begin() const override {
         return unitig.getPredecessors().begin();
     }
 
-    inline virtual decltype(unitig.getPredecessors().end()) end() const {
+    inline decltype(unitig.getPredecessors().end()) end() const override {
         return unitig.getPredecessors().end();
     }
 };
@@ -95,13 +95,25 @@ public:
     AdjacencyProxy(PyfrostCCDBG& dbg, AdjacencyType type) : dbg(dbg), type(type) { }
 
     inline AdjacencyViewBase* getView(PyfrostColoredUMap const& unitig) {
+        if(unitig.isEmpty) {
+            throw std::out_of_range("Node does not exist in the graph.");
+        }
+
         if(type == AdjacencyType::SUCCESSORS) {
             return new SuccessorView(unitig);
-        } else if(type == AdjacencyType::PREDECESSORS) {
-            return new PredecessorView(unitig);
         } else {
-            throw std::runtime_error("Unexpected value for AdjacencyProxy::type");
+            return new PredecessorView(unitig);
         }
+    }
+
+    inline AdjacencyViewBase* getView(Kmer const& kmer) {
+        auto unitig = dbg.find(kmer);
+        return getView(unitig);
+    }
+
+    inline AdjacencyViewBase* getView(char const* kmer) {
+        auto unitig = dbg.find(Kmer(kmer));
+        return getView(unitig);
     }
 
     inline auto begin() const {
@@ -169,7 +181,9 @@ void define_AdjacencyProxy(py::module& m) {
         .def("__contains__", py::overload_cast<Kmer const&>(&AdjacencyProxy::contains))
         .def("__contains__", py::overload_cast<char const*>(&AdjacencyProxy::contains))
 
-        .def("__getitem__", &AdjacencyProxy::getView, py::is_operator())
+        .def("__getitem__", py::overload_cast<PyfrostColoredUMap const&>(&AdjacencyProxy::getView), py::is_operator())
+        .def("__getitem__", py::overload_cast<Kmer const&>(&AdjacencyProxy::getView), py::is_operator())
+        .def("__getitem__", py::overload_cast<char const*>(&AdjacencyProxy::getView), py::is_operator())
 
         .def("__iter__", [] (AdjacencyProxy const& self) {
             return py::make_iterator(self.begin(), self.end(), py::return_value_policy::copy);
