@@ -190,26 +190,45 @@ void define_BifrostDiGraph(py::module& m) {
         .def("__getitem__", py::overload_cast<char const*>(&BifrostDiGraph::getSuccessors),
              "Access a node")
 
-        .def("neighbors", py::overload_cast<PyfrostColoredUMap const&>(&BifrostDiGraph::getSuccessors),
-             "Access a node")
-        .def("neighbors", py::overload_cast<Kmer const&>(&BifrostDiGraph::getSuccessors),
-             "Access a node")
-        .def("neighbors", py::overload_cast<char const*>(&BifrostDiGraph::getSuccessors),
-             "Access a node")
+        // neigbors, successors, and predececessors all should return an iterator
+        .def("neighbors", [] (BifrostDiGraph& self, PyfrostColoredUMap const& node) {
+            auto view = self.getSuccessors(node);
+            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+        })
+        .def("neighbors", [] (BifrostDiGraph& self, Kmer const& node) {
+            auto view = self.getSuccessors(node);
+            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+        })
+        .def("neighbors", [] (BifrostDiGraph& self, char const* node) {
+            auto view = self.getSuccessors(node);
+            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+        })
 
-        .def("successors", py::overload_cast<PyfrostColoredUMap const&>(&BifrostDiGraph::getSuccessors),
-             "Access a node")
-        .def("successors", py::overload_cast<Kmer const&>(&BifrostDiGraph::getSuccessors),
-             "Access a node")
-        .def("successors", py::overload_cast<char const*>(&BifrostDiGraph::getSuccessors),
-             "Access a node")
+        .def("successors", [] (BifrostDiGraph& self, PyfrostColoredUMap const& node) {
+            auto view = self.getSuccessors(node);
+            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+        })
+        .def("successors", [] (BifrostDiGraph& self, Kmer const& node) {
+            auto view = self.getSuccessors(node);
+            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+        })
+        .def("successors", [] (BifrostDiGraph& self, char const* node) {
+            auto view = self.getSuccessors(node);
+            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+        })
 
-        .def("predecessors", py::overload_cast<PyfrostColoredUMap const&>(&BifrostDiGraph::getPredecessors),
-             "Access a node")
-        .def("predecessors", py::overload_cast<Kmer const&>(&BifrostDiGraph::getPredecessors),
-             "Access a node")
-        .def("predecessors", py::overload_cast<char const*>(&BifrostDiGraph::getPredecessors),
-             "Access a node")
+        .def("predecessors", [] (BifrostDiGraph& self, PyfrostColoredUMap const& node) {
+            auto view = self.getPredecessors(node);
+            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+        })
+        .def("predecessors", [] (BifrostDiGraph& self, Kmer const& node) {
+            auto view = self.getPredecessors(node);
+            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+        })
+        .def("predecessors", [] (BifrostDiGraph& self, char const* node) {
+            auto view = self.getPredecessors(node);
+            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+        })
 
         .def("__len__", [] (BifrostDiGraph const& self) {
             return self.numNodes();
@@ -232,7 +251,11 @@ void define_BifrostDiGraph(py::module& m) {
             "Get predecessors keyed by node.")
 
         .def_property_readonly("graph", &BifrostDiGraph::getGraphAttributes,
-            "Get the graph attributes dictionary.");
+            "Get the graph attributes dictionary.")
+
+        .def("is_directed", [] () { return true; })
+        .def("is_multigraph", [] () { return false; })
+            ;
 
     m.def("load", &load, py::return_value_policy::move,
         "Load an existing colored Bifrost graph from a file.");

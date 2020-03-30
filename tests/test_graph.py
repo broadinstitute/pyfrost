@@ -138,3 +138,11 @@ def test_iteration(mccortex):
         node_set.add(pyfrost.reverse_complement(str(n)))
 
     assert node_set == truth
+
+    # neighbors(), successors() and predecessors() all should return an iterator
+    n = g.nodes['ACTGA']
+    assert next(g.neighbors(n))
+    assert next(g.successors(n))
+
+    n2 = g.nodes['TCGAA']
+    assert next(g.predecessors(n2))
