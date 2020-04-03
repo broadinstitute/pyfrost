@@ -1,6 +1,7 @@
 #include <tuple>
 
 #include <pybind11/pybind11.h>
+#include <pybind11/functional.h>
 #include <CompactedDBG.hpp>
 
 #include "Pyfrost.h"
@@ -248,35 +249,16 @@ void define_NodeView(py::module& m) {
         })
 
         // With data arguments we return a NodeDataView
-        .def("__call__", [] (NodeView& self, py::object const& data) {
+        .def("__call__", [] (NodeView& self, py::object const& data, py::object const& default_value) {
             try {
                 bool data_bool = py::cast<bool>(data);
 
                 return new NodeDataView(self, data_bool);
             } catch(py::cast_error const&) {
-                return new NodeDataView(self, true, data);
+                return new NodeDataView(self, true, data, default_value);
             }
-        }, py::keep_alive<0, 1>())
-        .def("__call__", [] (NodeView& self, py::kwargs const& kwargs) {
-            py::object default_value = py::none();
-            if(kwargs.contains("default")) {
-                default_value = kwargs["default"];
-            }
-
-            py::object data = py::none();
-            bool data_bool = false;
-            if(kwargs.contains("data")) {
-                try {
-                    data_bool = py::cast<bool>(kwargs["data"]);
-
-                    return new NodeDataView(self, data_bool);
-                } catch(py::cast_error const&) {
-                    return new NodeDataView(self, true, kwargs["data"], default_value);
-                }
-            }
-
-            return new NodeDataView(self);
-        }, py::keep_alive<0, 1>())
+        }, py::arg("data") = false, py::arg("default") = py::none(),
+           py::keep_alive<0, 1>())
 
         // Iterate over all nodes
         .def("__iter__", [](NodeView const& self) {
