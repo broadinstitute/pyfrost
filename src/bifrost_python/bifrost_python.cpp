@@ -7,6 +7,7 @@
 
 #include "Kmer.h"
 #include "UnitigDataDict.h"
+#include "UnitigDataProxy.h"
 #include "UnitigMapping.h"
 #include "NodeView.h"
 #include "AdjacencyProxy.h"
@@ -29,6 +30,7 @@ PYBIND11_MODULE(bifrost_python, m) {
     m.attr("default_k") = DEFAULT_K;
 
     pyfrost::define_Kmer(m);
+    pyfrost::define_UnitigDataProxy(m);
     pyfrost::define_UnitigMapping(m);
     pyfrost::define_NodeView(m);
     pyfrost::define_AdjacencyProxy(m);

@@ -7,8 +7,12 @@
 
 namespace pyfrost {
 
-// TODO: store unitig data as python dict?
-using PyfrostCCDBG = ColoredCDBG<void>;
+using PyfrostCCDBG = ColoredCDBG<UnitigDataDict>;
+
+enum class Strand : uint8_t {
+    REVERSE,
+    FORWARD
+};
 
 }
 

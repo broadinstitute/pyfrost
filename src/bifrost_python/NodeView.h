@@ -5,6 +5,7 @@
 #include <CompactedDBG.hpp>
 
 #include "Pyfrost.h"
+#include "UnitigDataProxy.h"
 
 #ifndef PYFROST_NODEVIEW_H
 #define PYFROST_NODEVIEW_H
@@ -15,8 +16,12 @@ namespace pyfrost {
 
 using std::pair;
 
+class NodeDataView;
+
 class NodeView {
 public:
+    friend class NodeDataView;
+
     explicit NodeView(PyfrostCCDBG& dbg) : dbg(dbg) { }
 
     /**
@@ -26,29 +31,30 @@ public:
      *
      * @param kmer
      */
-    inline PyfrostColoredUMap findNode(Kmer const& kmer) {
+    inline UnitigDataProxy findNode(Kmer const& kmer) {
         auto unitig = dbg.find(kmer, true);
 
         if(unitig.isEmpty) {
             throw std::out_of_range("Node not found.");
         }
 
-        return unitig.mappingToFullUnitig();
+        unitig = unitig.mappingToFullUnitig();
+        return UnitigDataProxy(unitig);
     }
 
-    inline PyfrostColoredUMap findNode(char const* kmer) {
+    inline UnitigDataProxy findNode(char const* kmer) {
         return findNode(Kmer(kmer));
     }
 
     /**
      * Return itself when calling with an existing kmer on unitig
      */
-    inline PyfrostColoredUMap findNode(PyfrostColoredUMap const& unitig) {
+    inline UnitigDataProxy findNode(PyfrostColoredUMap const& unitig) {
         if(!unitig.isFullMapping()) {
             throw std::out_of_range("Node not found.");
         }
 
-        return unitig.mappingToFullUnitig();
+        return UnitigDataProxy(unitig);
     }
 
     bool contains(PyfrostColoredUMap const& unitig) {
@@ -132,16 +138,17 @@ public:
 
     value_type operator*() {
         if(data) {
-            // TODO: Populate with actual node data
-            py::dict node_dict;
+            auto data_proxy = UnitigDataProxy(*wrapped);
+
             if(!data_key.is_none()) {
-                if(node_dict.contains(data_key)) {
-                    return py::make_tuple(PyfrostColoredUMap(*wrapped), node_dict[data_key]);
+                auto key = data_key.cast<std::string>();
+                if(data_proxy.contains(key)) {
+                    return py::make_tuple(PyfrostColoredUMap(*wrapped), data_proxy.getData(key));
                 } else {
                     return py::make_tuple(PyfrostColoredUMap(*wrapped), default_value);
                 }
             } else {
-                return py::make_tuple(PyfrostColoredUMap(*wrapped), node_dict);
+                return py::make_tuple(PyfrostColoredUMap(*wrapped), data_proxy);
             }
         } else {
             return py::cast(PyfrostColoredUMap(*wrapped));
@@ -198,6 +205,34 @@ public:
         return node_view.numNodes();
     }
 
+    py::object get(PyfrostColoredUMap const& unitig) {
+        if(data) {
+            auto data_proxy = UnitigDataProxy(unitig);
+
+            if(!data_key.is_none()) {
+                auto key = data_key.cast<std::string>();
+                if(data_proxy.contains(key)) {
+                    return data_proxy.getData(key);
+                } else {
+                    return default_value;
+                }
+            } else {
+                return py::cast(data_proxy);
+            }
+        } else {
+            return py::cast(unitig);
+        }
+    }
+
+    inline py::object get(Kmer const& kmer) {
+        auto unitig = node_view.dbg.find(kmer);
+        return get(unitig);
+    }
+
+    inline py::object get(char const* kmer) {
+        return get(Kmer(kmer));
+    }
+
     bool contains(PyfrostColoredUMap const& unitig) {
         return node_view.contains(unitig);
     }
@@ -219,7 +254,11 @@ private:
 
 
 void define_NodeView(py::module& m) {
-    py::class_<NodeDataView>(m, "NodeDataView")
+    auto py_NodeDataView = py::class_<NodeDataView>(m, "NodeDataView")
+        .def("__getitem__", py::overload_cast<char const*>(&NodeDataView::get), py::is_operator())
+        .def("__getitem__", py::overload_cast<Kmer const&>(&NodeDataView::get), py::is_operator())
+        .def("__getitem__", py::overload_cast<PyfrostColoredUMap const&>(&NodeDataView::get), py::is_operator())
+
         .def("__contains__", py::overload_cast<char const*>(&NodeDataView::contains), py::is_operator())
         .def("__contains__", py::overload_cast<Kmer const&>(&NodeDataView::contains), py::is_operator())
         .def("__contains__", py::overload_cast<PyfrostColoredUMap const&>(&NodeDataView::contains), py::is_operator())
@@ -231,7 +270,12 @@ void define_NodeView(py::module& m) {
             return py::make_iterator(self.begin(), self.end());
         }, py::keep_alive<0, 1>());
 
-    py::class_<NodeView>(m, "NodeView")
+    // Hack to let our NodeDataView inherit from the collections.abc.Mapping Python mixin
+    auto Mapping = py::module::import("collections.abc").attr("Mapping");
+    auto Set = py::module::import("collections.abc").attr("Set");
+    py_NodeDataView.attr("__bases__") = py::make_tuple(Mapping, Set).attr("__add__")(py_NodeDataView.attr("__bases__"));
+
+    auto py_NodeView = py::class_<NodeView>(m, "NodeView")
         // Access nodes with [] operator overloading
         .def("__getitem__", py::overload_cast<char const*>(&NodeView::findNode), py::is_operator())
         .def("__getitem__", py::overload_cast<Kmer const&>(&NodeView::findNode), py::is_operator())
@@ -264,6 +308,9 @@ void define_NodeView(py::module& m) {
         .def("__iter__", [](NodeView const& self) {
             return py::make_iterator<py::return_value_policy::copy>(self.begin(), self.end());
         }, py::keep_alive<0, 1>());
+
+    // NodeView inherits from both Mapping and Set python mixins
+    py_NodeView.attr("__bases__") = py::make_tuple(Mapping, Set).attr("__add__")(py_NodeView.attr("__bases__"));
 }
 
 

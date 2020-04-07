@@ -14,7 +14,10 @@ namespace pyfrost {
  */
 class UnitigDataDict : public CCDBG_Data_t<UnitigDataDict> {
 public:
-    UnitigDataDict() { }
+    UnitigDataDict() : data() {
+        std::cout << "Data Init" << std::endl;
+        data["test"] = 1;
+    }
 
     UnitigDataDict(UnitigDataDict const& o) : data(o.data) { }
     UnitigDataDict(UnitigDataDict&& o) noexcept : data(std::move(o.data)) { }
@@ -31,11 +34,11 @@ public:
     void concat(UnitigColorMap<UnitigDataDict> const& um_dest, UnitigColorMap<UnitigDataDict> const& um_src) {
         // Two unitigs get concatenated. Currently we don't merge any data because it's a new unitig.
         // Maybe in the future try to intelligently merge data? Bit hard because the dict can contain all kinds
-        //  of data
+        // of data
         data.clear();
     }
 
-    void extract(UnitigColorMap<UnitigDataDict> const& um_src, bool last_extraction) {
+    void extract(UnitigColors const* uc_dest, UnitigColorMap<UnitigDataDict> const& um_src, bool last_extraction) {
         // Again, just clear the dictionary. Hard to handle user data in the dict that can be all kinds of types.
         data.clear();
     }
@@ -45,7 +48,7 @@ public:
         return std::string();
     }
 
-    py::dict& getDict() {
+    py::dict getDict() {
         return data;
     }
 
@@ -54,8 +57,8 @@ private:
 
 };
 
-//using PyfrostColoredUMap = UnitigColorMap<UnitigDataDict>;
-using PyfrostColoredUMap = UnitigColorMap<void>;
+using PyfrostColoredUMap = UnitigColorMap<UnitigDataDict>;
+//using PyfrostColoredUMap = UnitigColorMap<void>;
 
 }
 

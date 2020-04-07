@@ -1,5 +1,6 @@
 #include <pybind11/pybind11.h>
 #include "Pyfrost.h"
+#include "UnitigDataProxy.h"
 
 #ifndef PYFROST_KMERONUNITIG_H
 #define PYFROST_KMERONUNITIG_H
@@ -8,37 +9,19 @@ namespace py = pybind11;
 
 namespace pyfrost {
 
-enum class Strand : uint8_t {
-    REVERSE,
-    FORWARD
-};
-
-size_t mappedStringLength(PyfrostColoredUMap const& self) {
-    return self.getGraph()->getK() + self.len - 1;
-}
-
 void define_UnitigMapping(py::module& m) {
     py::enum_<Strand>(m, "Strand")
         .value("REVERSE", Strand::REVERSE, "Reverse orientation")
         .value("FORWARD", Strand::FORWARD, "Forward orientation");
 
     py::class_<PyfrostColoredUMap>(m, "UnitigMapping")
+        // Unitig head and tail k-mers
         .def_property_readonly("head", [] (PyfrostColoredUMap const& self) {
             return self.strand ? self.getUnitigHead() : self.getUnitigTail().twin();
             }, "The k-mer at the beginning of this unitig, in the same orientation as the mapped sequence.")
         .def_property_readonly("tail", [] (PyfrostColoredUMap const& self) {
             return self.strand ? self.getUnitigTail() : self.getUnitigHead().twin();
             }, "The k-mer at the end of this unitig, in the same orientation as the mapped sequence.")
-
-        .def_readonly("pos", &PyfrostColoredUMap::dist, "Start position of the mapped sequence on this unitig.")
-        .def_property_readonly("length", &mappedStringLength, "Start position of the mapped sequence on this unitig.")
-        .def_readonly("unitig_size", &PyfrostColoredUMap::size, "Length of the whole unitig sequence.")
-        .def_property_readonly("strand", [] (PyfrostColoredUMap const& self) {
-            return static_cast<Strand>(self.strand);
-        })
-        .def_property_readonly("is_full_mapping", [] (PyfrostColoredUMap const& self) {
-            return self.dist == 0 && self.len == self.size - self.getGraph()->getK() + 1;
-        })
 
         .def("get_full_mapping", [] (PyfrostColoredUMap const& self) {
             return self.mappingToFullUnitig();
@@ -47,8 +30,6 @@ void define_UnitigMapping(py::module& m) {
         .def("__str__", [] (PyfrostColoredUMap const& self) {
             return self.mappedSequenceToString();
         })
-
-        .def("__len__", mappedStringLength, "Length of the mapped string.")
 
         .def("__repr__", [] (PyfrostColoredUMap const& self) {
             stringstream repr;
@@ -78,7 +59,7 @@ void define_UnitigMapping(py::module& m) {
             }
 
             repr << " MapPos=" << self.dist;
-            repr << " MapLen=" << mappedStringLength(self);
+            repr << " MapLen=" << UnitigDataProxy(self).mappedStringLength();
             repr << " UnitigSize=" << self.size;
             repr << " Strand=" << (self.strand ? "forward" : "reverse") << ">";
 
