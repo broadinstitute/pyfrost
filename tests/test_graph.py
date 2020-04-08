@@ -12,6 +12,10 @@ def test_find_unitig(mccortex):
     # Single k-mer which is a head of a unitig
     kmer1 = g.find('ACTGA', True)
 
+    # A single k-mer should not be a node of the graph
+    assert kmer1 not in g
+    assert kmer1 not in g.nodes
+
     # Get the full unitig
     n1 = kmer1.get_full_mapping()
 
@@ -42,6 +46,7 @@ def test_graph_attr(mccortex):
     g = mccortex
 
     assert g.graph['k'] == 5
+    assert isinstance(g.graph['color_names'], list)
 
     g.graph['test'] = 1
     assert g.graph['test'] == 1

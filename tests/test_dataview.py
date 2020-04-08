@@ -67,3 +67,31 @@ def test_unitig_data(mccortex):
     assert kmer1.data['length'] != n1.data['length']
     assert kmer1.data['unitig_length'] == n1.data['unitig_length']
     assert n1.data['strand'] == Strand.REVERSE
+
+    # Test user attributes
+    n1.data['test'] = 1
+    assert n1.data['test'] == 1
+
+    # kmer1 points to the same unitig so should have the same value
+    assert kmer1.data['test'] == 1
+
+    with pytest.raises(KeyError):
+        _ = kmer1.data['dgfdghsdfkgh']
+
+    # Harcoded keys should be read only
+    with pytest.raises(KeyError):
+        kmer1.data['is_full_mapping'] = True
+
+
+def test_unitig_colors(mccortex):
+    g = mccortex
+
+    kmer1 = g.find('TCGAA')
+    colors = list(iter(kmer1.data['colors']))
+
+    assert colors == [(0, 0)]
+
+    n1 = kmer1.get_full_mapping()
+    colors = list(iter(n1.data['colors']))
+
+    assert colors == [(i, 0) for i in range(n1.data['length'] - g.graph['k'] + 1)]
