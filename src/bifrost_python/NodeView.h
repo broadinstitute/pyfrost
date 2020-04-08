@@ -1,9 +1,3 @@
-#include <tuple>
-
-#include <pybind11/pybind11.h>
-#include <pybind11/functional.h>
-#include <CompactedDBG.hpp>
-
 #include "Pyfrost.h"
 #include "UnitigDataProxy.h"
 
@@ -13,8 +7,6 @@
 namespace py = pybind11;
 
 namespace pyfrost {
-
-using std::pair;
 
 class NodeDataView;
 
@@ -322,7 +314,6 @@ void define_NodeView(py::module& m) {
     auto Mapping = py::module::import("collections.abc").attr("Mapping");
     py_NodeView.attr("__bases__") = py::make_tuple(Mapping, Set).attr("__add__")(py_NodeView.attr("__bases__"));
 }
-
 
 }
 
