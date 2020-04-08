@@ -14,10 +14,7 @@ namespace pyfrost {
  */
 class UnitigDataDict : public CCDBG_Data_t<UnitigDataDict> {
 public:
-    UnitigDataDict() : data() {
-        std::cout << "Data Init" << std::endl;
-        data["test"] = 1;
-    }
+    UnitigDataDict() { }
 
     UnitigDataDict(UnitigDataDict const& o) : data(o.data) { }
     UnitigDataDict(UnitigDataDict&& o) noexcept : data(std::move(o.data)) { }
@@ -48,7 +45,7 @@ public:
         return std::string();
     }
 
-    py::dict getDict() {
+    py::dict& getDict() {
         return data;
     }
 
@@ -58,7 +55,6 @@ private:
 };
 
 using PyfrostColoredUMap = UnitigColorMap<UnitigDataDict>;
-//using PyfrostColoredUMap = UnitigColorMap<void>;
 
 }
 

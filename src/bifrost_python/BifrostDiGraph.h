@@ -1,9 +1,6 @@
 #include <vector>
 #include <string>
 
-#include <pybind11/pybind11.h>
-#include <CompactedDBG.hpp>
-
 #include "Pyfrost.h"
 #include "NodeView.h"
 #include "AdjacencyProxy.h"
@@ -103,6 +100,7 @@ public:
 private:
     void populateAttrs() {
         attr["k"] = dbg.getK();
+        attr["color_names"] = dbg.getData()->getColorNames();
     }
 
     PyfrostCCDBG dbg;
@@ -113,7 +111,7 @@ private:
 
 };
 
-void populate_options(CCDBG_Build_opt& opt, py::kwargs const& kwargs, bool build_input_files=false) {
+void populate_options(CCDBG_Build_opt& opt, py::kwargs const& kwargs) {
     if(kwargs.contains("k")) {
         opt.k = py::cast<int>(kwargs["k"]);
     }
@@ -127,7 +125,15 @@ void populate_options(CCDBG_Build_opt& opt, py::kwargs const& kwargs, bool build
     }
 
     if(kwargs.contains("verbose")) {
-        opt.verbose = py::cast<bool>(kwargs["bool"]);
+        opt.verbose = py::cast<bool>(kwargs["verbose"]);
+    }
+
+    if(kwargs.contains("delete_isolated")) {
+        opt.deleteIsolated = py::cast<bool>(kwargs["delete_isolated"]);
+    }
+
+    if(kwargs.contains("clip_tips")) {
+        opt.clipTips = py::cast<bool>(kwargs["clip_tips"]);
     }
 }
 
@@ -149,10 +155,17 @@ BifrostDiGraph build(py::list const& input_seq_files, py::list const& input_ref_
     populate_options(opt, kwargs);
 
     PyfrostCCDBG ccdbg(opt.k, opt.g);
-    bool result = ccdbg.build(opt);
+    bool result = ccdbg.buildGraph(opt);
 
     if(!result) {
         throw std::runtime_error("Error building the graph.");
+    }
+
+    ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+    result = ccdbg.buildColors(opt);
+
+    if(!result) {
+        throw std::runtime_error("Error building coloring the graph.");
     }
 
     return BifrostDiGraph(std::move(ccdbg));

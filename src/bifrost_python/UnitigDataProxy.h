@@ -1,7 +1,5 @@
 #include <unordered_map>
 
-#include <pybind11/pybind11.h>
-
 #include "Pyfrost.h"
 
 #ifndef PYFROST_UNITIGDATAPROXY_H
@@ -45,7 +43,7 @@ public:
     UnitigDataKeyIterator end() const;
 
 private:
-    inline py::dict getDataDict() const {
+    inline py::dict& getDataDict() const {
         return unitig.getData()->getData(unitig)->getDict();
     }
 

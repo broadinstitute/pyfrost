@@ -1,4 +1,5 @@
 #include "UnitigDataProxy.h"
+#include "UnitigColors.h"
 
 namespace pyfrost {
 
@@ -54,12 +55,11 @@ py::object UnitigDataProxy::getData(std::string const& key) const {
             return py::cast(unitig.isFullMapping());
 
         case UnitigMetaKeys::COLORS:
-            return py::cast(unitig.getData()->getUnitigColors(unitig));
+            return py::cast(UnitigColorsProxy(unitig));
 
         default:
         {
-            //auto data_dict = getDataDict();
-            auto data_dict = py::dict();
+            auto& data_dict = getDataDict();
 
             if(data_dict.contains(key)) {
                 return data_dict[key.c_str()];
@@ -75,7 +75,7 @@ void UnitigDataProxy::setData(std::string const& key, py::object const& value) {
         throw py::key_error("Key '" + key + "' is read only unitig metadata.");
     }
 
-    auto data_dict = getDataDict();
+    auto& data_dict = getDataDict();
     data_dict[key.c_str()] = value;
 }
 
@@ -84,8 +84,8 @@ void UnitigDataProxy::delData(const py::str &key) {
         throw py::key_error("Key '" + key.cast<std::string>() + "' is read only unitig metadata.");
     }
 
-    //auto data_dict = getDataDict();
-    //PyDict_DelItem(data_dict.ptr(), key.ptr());
+    auto& data_dict = getDataDict();
+    PyDict_DelItem(data_dict.ptr(), key.ptr());
 }
 
 size_t UnitigDataProxy::size() const {
@@ -97,8 +97,7 @@ size_t UnitigDataProxy::mappedStringLength() const {
 }
 
 UnitigDataKeyIterator UnitigDataProxy::begin() const {
-    // auto data_dict = getDataDict();
-    auto data_dict = py::dict();
+    auto& data_dict = getDataDict();
     for(auto const& item : data_dict) {
         std::cout << py::cast<std::string>(item.first) << "-" << py::cast<std::string>(item.second) << std::endl;
     }
@@ -108,8 +107,7 @@ UnitigDataKeyIterator UnitigDataProxy::begin() const {
 }
 
 UnitigDataKeyIterator UnitigDataProxy::end() const {
-    // auto data_dict = getDataDict();
-    auto data_dict = py::dict();
+    auto& data_dict = getDataDict();
     return {hardcoded_keys.cend(), hardcoded_keys.cend(),
             data_dict.end()};
 }
