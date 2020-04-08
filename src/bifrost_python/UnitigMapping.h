@@ -23,13 +23,15 @@ void define_UnitigMapping(py::module& m) {
             return self.strand ? self.getUnitigTail() : self.getUnitigHead().twin();
             }, "The k-mer at the end of this unitig, in the same orientation as the mapped sequence.")
 
-        .def("get_full_mapping", [] (PyfrostColoredUMap const& self) {
-            return self.mappingToFullUnitig();
-        }, "Get a new UnitigMapping object where the mapping represents the full unitig (instead of a single k-mer).")
+        .def("get_full_mapping", &PyfrostColoredUMap::mappingToFullUnitig,
+            "Get a new UnitigMapping object where the mapping represents the full unitig (instead of a single k-mer).")
 
-        .def("__str__", [] (PyfrostColoredUMap const& self) {
-            return self.mappedSequenceToString();
-        })
+        .def_property_readonly("data", [] (PyfrostColoredUMap const& self) {
+            // Creating a new object every time `data` is accessed for now, maybe something smarter in the future
+            return UnitigDataProxy(self);
+        }, py::return_value_policy::move)
+
+        .def("__str__", &PyfrostColoredUMap::mappedSequenceToString)
 
         .def("__repr__", [] (PyfrostColoredUMap const& self) {
             stringstream repr;
