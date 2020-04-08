@@ -7,7 +7,7 @@ import networkx as nx
 def test_dfs(mccortex):
     g = mccortex
 
-    start = g.nodes['ACTGA']
+    start = g.find('ACTGA', True).get_full_mapping()
 
     visited = defaultdict(int)
     visited[start] = 1
@@ -38,7 +38,7 @@ def test_dfs(mccortex):
 def test_bfs(mccortex):
     g = mccortex
 
-    start = g.nodes['ACTGA']
+    start = g.find('ACTGA', True).get_full_mapping()
 
     visited = defaultdict(int)
     visited[start] = 1

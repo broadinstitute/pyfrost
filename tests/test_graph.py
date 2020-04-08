@@ -3,25 +3,39 @@ import pytest
 import pyfrost
 
 
-def test_node_access(mccortex):
+def test_find_unitig(mccortex):
     g = mccortex
 
     assert len(g) == 6
     assert len(g.nodes) == 6
 
-    n = g.nodes['ACTGA']
-    assert str(n) == "ACTGATTTCGA"
-    assert n.is_full_mapping
-    assert n.strand == pyfrost.Strand.REVERSE
+    # Single k-mer which is a head of a unitig
+    kmer1 = g.find('ACTGA', True)
+
+    # Get the full unitig
+    n1 = kmer1.get_full_mapping()
+
+    assert str(kmer1) == "ACTGA"
+    assert str(n1) == "ACTGATTTCGA"
 
     # Same node as above, but then reverse complement
-    n2 = g.nodes['TCGAA']
+    kmer2 = g.find('TCGAA', True)
+    n2 = kmer2.get_full_mapping()
+    assert str(kmer2) == "TCGAA"
     assert str(n2) == "TCGAAATCAGT"
-    assert n2.is_full_mapping
-    assert n2.strand == pyfrost.Strand.FORWARD
 
-    with pytest.raises(IndexError):
-        _ = g.nodes['GGGGG']
+    # Single k-mer in the middle of an unitig
+    kmer3 = g.find('ATTTC')
+    n3 = kmer3.get_full_mapping()
+
+    assert str(kmer3) == "ATTTC"
+    assert str(n3) == "ACTGATTTCGA"
+
+    # If extremities_only=True, then the above should return False
+    assert not g.find("ATTTC", True)
+
+    # Non-existent k-mer
+    assert not g.find("GGGGG")
 
 
 def test_graph_attr(mccortex):
@@ -36,14 +50,14 @@ def test_graph_attr(mccortex):
 def test_successors(mccortex):
     g = mccortex
 
-    n = g.nodes['ACTGA']
+    n = g.find('ACTGA', True).get_full_mapping()
     succ = [s for s in g.succ[n]]
     assert len(succ) == 2
 
     succ_set = set(str(s) for s in g.succ[n])
     assert succ_set == {"TCGAAATCAGT", "TCGAT"}
 
-    n2 = g.nodes['TCGAA']
+    n2 = g.find('TCGAA', True).get_full_mapping()
     assert n2 in g.succ[n]
     assert n not in g.succ[n]
 
@@ -70,14 +84,14 @@ def test_successors(mccortex):
 def test_predecessors(mccortex):
     g = mccortex
 
-    n = g.nodes['ACTGA']
+    n = g.find('ACTGA', True).get_full_mapping()
     pred = [p for p in g.pred[n]]
     assert len(pred) == 0
     assert len(g.pred[n]) == 0
 
     assert set(str(p) for p in g.pred[n]) == set()
 
-    n2 = g.nodes['TCGAA']
+    n2 = g.find('TCGAA', True).get_full_mapping()
 
     assert n in g.pred[n2]
     assert n2 not in g.pred[n2]
@@ -140,9 +154,9 @@ def test_iteration(mccortex):
     assert node_set == truth
 
     # neighbors(), successors() and predecessors() all should return an iterator
-    n = g.nodes['ACTGA']
+    n = g.find('ACTGA', True).get_full_mapping()
     assert next(g.neighbors(n))
     assert next(g.successors(n))
 
-    n2 = g.nodes['TCGAA']
+    n2 = g.find('TCGAA', True).get_full_mapping()
     assert next(g.predecessors(n2))
