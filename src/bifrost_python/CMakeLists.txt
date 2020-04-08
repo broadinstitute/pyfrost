@@ -2,6 +2,7 @@ pybind11_add_module(bifrost_python
     Kmer.h
     UnitigDataDict.h
     UnitigColors.h
+    UnitigColors.cpp
     UnitigMapping.h
     UnitigDataProxy.h
     UnitigDataProxy.cpp
