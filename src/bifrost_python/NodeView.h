@@ -268,12 +268,16 @@ void define_NodeView(py::module& m) {
         // This iterator already should have copies, so no need for return_value_policy::copy
         .def("__iter__", [] (NodeDataView const& self) {
             return py::make_iterator(self.begin(), self.end());
-        }, py::keep_alive<0, 1>());
+        }, py::keep_alive<0, 1>())
 
-    // Hack to let our NodeDataView inherit from the collections.abc.Mapping Python mixin
-    auto Mapping = py::module::import("collections.abc").attr("Mapping");
+        // Required for Set mixin (see collections.abc Python documentation)
+        .def_static("_from_iterable", [] (py::iterable const& iterator) {
+            return py::set(iterator);
+        });
+
+    // Hack to let our NodeDataView inherit from the collections.abc.Set Python mixin
     auto Set = py::module::import("collections.abc").attr("Set");
-    py_NodeDataView.attr("__bases__") = py::make_tuple(Mapping, Set).attr("__add__")(py_NodeDataView.attr("__bases__"));
+    py_NodeDataView.attr("__bases__") = py::make_tuple(Set).attr("__add__")(py_NodeDataView.attr("__bases__"));
 
     auto py_NodeView = py::class_<NodeView>(m, "NodeView")
         // Access nodes with [] operator overloading
@@ -307,9 +311,15 @@ void define_NodeView(py::module& m) {
         // Iterate over all nodes
         .def("__iter__", [](NodeView const& self) {
             return py::make_iterator<py::return_value_policy::copy>(self.begin(), self.end());
-        }, py::keep_alive<0, 1>());
+        }, py::keep_alive<0, 1>())
 
-    // NodeView inherits from both Mapping and Set python mixins
+        // Required for Set mixin (see collections.abc Python documentation)
+        .def_static("_from_iterable", [] (py::iterable const& iterator) {
+            return py::set(iterator);
+        });
+
+    // NodeView inherits from both Mapping and Set
+    auto Mapping = py::module::import("collections.abc").attr("Mapping");
     py_NodeView.attr("__bases__") = py::make_tuple(Mapping, Set).attr("__add__")(py_NodeView.attr("__bases__"));
 }
 
