@@ -11,7 +11,7 @@ class UnitigColorsProxy {
 public:
     explicit UnitigColorsProxy(PyfrostColoredUMap const& unitig) : unitig(unitig) { }
 
-    UnitigColorsProxy(UnitigColorsProxy& o) = default;
+    UnitigColorsProxy(UnitigColorsProxy const& o) = default;
     UnitigColorsProxy(UnitigColorsProxy&& o) = default;
 
     UnitigColorsProxy& operator=(UnitigColorsProxy const& o) = default;
