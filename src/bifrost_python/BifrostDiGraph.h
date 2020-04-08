@@ -84,6 +84,14 @@ public:
         return pred.getView(kmer);
     }
 
+    inline PyfrostColoredUMap findUnitig(Kmer const& kmer, bool extremities_only=false) {
+        return dbg.find(kmer, extremities_only);
+    }
+
+    inline PyfrostColoredUMap findUnitig(char const* kmer, bool extremities_only=false) {
+        return dbg.find(Kmer(kmer), extremities_only);
+    }
+
     inline size_t numNodes() const {
         return dbg.size();
     }
@@ -190,7 +198,12 @@ void define_BifrostDiGraph(py::module& m) {
         .def("__getitem__", py::overload_cast<char const*>(&BifrostDiGraph::getSuccessors),
              "Access a node")
 
-        // neigbors, successors, and predececessors all should return an iterator
+         .def("find", py::overload_cast<Kmer const&, bool>(&BifrostDiGraph::findUnitig), py::arg("kmer"),
+             py::arg("extremities_only") = false)
+        .def("find", py::overload_cast<char const*, bool>(&BifrostDiGraph::findUnitig), py::arg("kmer"),
+             py::arg("extremities_only") = false)
+
+            // neigbors, successors, and predececessors all should return an iterator
         .def("neighbors", [] (BifrostDiGraph& self, PyfrostColoredUMap const& node) {
             auto view = self.getSuccessors(node);
             return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
