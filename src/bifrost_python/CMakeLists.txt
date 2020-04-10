@@ -1,4 +1,5 @@
 pybind11_add_module(bifrost_python
+    Pyfrost.h
     Kmer.h
     UnitigDataDict.h
     UnitigColors.h
@@ -7,9 +8,13 @@ pybind11_add_module(bifrost_python
     UnitigDataProxy.h
     UnitigDataProxy.cpp
     AdjacencyProxy.h
-    Pyfrost.h
+    AdjacencyProxy.cpp
     NodeView.h
+    NodeView.cpp
+    NodeBunchIter.h
+    NodeBunchIter.cpp
     BifrostDiGraph.h
+    BifrostDiGraph.cpp
     bifrost_python.cpp
     )
 
