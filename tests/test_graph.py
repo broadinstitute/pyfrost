@@ -158,10 +158,18 @@ def test_iteration(mccortex):
 
     assert node_set == truth
 
-    # neighbors(), successors() and predecessors() all should return an iterator
-    n = g.find('ACTGA', True).get_full_mapping()
-    assert next(g.neighbors(n))
-    assert next(g.successors(n))
+    u1 = g.find('ACTGA', True).get_full_mapping()
+    u2 = g.find('TCGAA', True).get_full_mapping()
+    kmer1 = g.find('ATTTC')
 
-    n2 = g.find('TCGAA', True).get_full_mapping()
-    assert next(g.predecessors(n2))
+    # Discards any UnitigMapping that's not a node (i.e. a full unitig mapping)
+    assert set(g.nbunch_iter([u1, u2, kmer1])) == {u1, u2}
+
+    with pytest.raises(RuntimeError):
+        _ = list(g.nbunch_iter([u1, u2, 20]))
+
+    # neighbors(), successors() and predecessors() all should return an iterator
+    assert next(g.neighbors(u1))
+    assert next(g.successors(u1))
+
+    assert next(g.predecessors(u2))
