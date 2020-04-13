@@ -164,9 +164,7 @@ def test_iteration(mccortex):
 
     # Discards any UnitigMapping that's not a node (i.e. a full unitig mapping)
     assert set(g.nbunch_iter([u1, u2, kmer1])) == {u1, u2}
-
-    with pytest.raises(RuntimeError):
-        _ = list(g.nbunch_iter([u1, u2, 20]))
+    assert set(g.nbunch_iter([u1, u2, 20])) == {u1, u2}
 
     # neighbors(), successors() and predecessors() all should return an iterator
     assert next(g.neighbors(u1))
