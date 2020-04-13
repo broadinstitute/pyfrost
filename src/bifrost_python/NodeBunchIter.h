@@ -9,29 +9,27 @@ class BifrostDiGraph;
 
 class NodeBunchIter {
 private:
-    using wrapped_iter_t = py::iterator;
-
-    BifrostDiGraph const &graph;
-    wrapped_iter_t wrapped;
+    py::iterator wrapped;
 
 public:
     using iterator_category = std::input_iterator_tag;
     using value_type = PyfrostColoredUMap;
     using difference_type = std::ptrdiff_t;
-    using reference = value_type &;
-    using pointer = value_type *;
+    using reference = value_type&;
+    using pointer = value_type const*;
 
-    NodeBunchIter(BifrostDiGraph const &graph, py::iterator iter) : graph(graph), wrapped(std::move(iter)) {}
-    NodeBunchIter(NodeBunchIter const &o) = default;
-    NodeBunchIter(NodeBunchIter &&o) = default;
+    explicit NodeBunchIter(py::iterator iter);
+    NodeBunchIter(NodeBunchIter const& o) = default;
+    NodeBunchIter(NodeBunchIter&& o) = default;
 
     value_type operator*();
+    pointer operator->();
 
-    NodeBunchIter &operator++();
+    NodeBunchIter& operator++();
     NodeBunchIter operator++(int);
 
-    bool operator==(NodeBunchIter const &o);
-    bool operator!=(NodeBunchIter const &o);
+    bool operator==(NodeBunchIter const& o);
+    bool operator!=(NodeBunchIter const& o);
 };
 
 }

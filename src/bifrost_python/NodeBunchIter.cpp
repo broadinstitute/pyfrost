@@ -3,24 +3,36 @@
 
 namespace pyfrost {
 
+NodeBunchIter::NodeBunchIter(py::iterator iter) : wrapped(std::move(iter)) { }
+
 NodeBunchIter::value_type NodeBunchIter::operator*() {
-    return wrapped->cast<NodeBunchIter::value_type>();
+    if(wrapped != py::iterator::sentinel()) {
+        return wrapped->cast<NodeBunchIter::value_type>();
+    }
+
+    // return empty UnitigMap
+    return {};
+}
+
+NodeBunchIter::pointer NodeBunchIter::operator->() {
+    static const NodeBunchIter::value_type empty;
+
+    if(py::isinstance<NodeBunchIter::value_type>(*wrapped)) {
+        auto& um_ref = wrapped->cast<NodeBunchIter::reference>();
+        return &um_ref;
+    }
+
+    return &empty;
 }
 
 NodeBunchIter &NodeBunchIter::operator++() {
-    ++wrapped;
-
-    if(wrapped != py::iterator::sentinel()) {
-        auto node = wrapped->cast<NodeBunchIter::reference>();
-        while (node.isEmpty || !node.isFullMapping()) {
-            ++wrapped;
-            if(wrapped == py::iterator::sentinel()) {
-                break;
-            }
-
-            node = wrapped->cast<NodeBunchIter::reference>();
+    do {
+        ++wrapped;
+        if(wrapped == py::iterator::sentinel()) {
+            break;
         }
-    }
+    } while(!py::isinstance<NodeBunchIter::value_type>(*wrapped)
+            || !wrapped->cast<NodeBunchIter::value_type>().isFullMapping());
 
     return *this;
 }
@@ -33,7 +45,7 @@ NodeBunchIter NodeBunchIter::operator++(int) {
 }
 
 bool NodeBunchIter::operator==(NodeBunchIter const &o) {
-    return graph == o.graph && wrapped == o.wrapped;
+    return wrapped == o.wrapped;
 }
 
 bool NodeBunchIter::operator!=(NodeBunchIter const &o) {
