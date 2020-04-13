@@ -13,6 +13,8 @@ pybind11_add_module(bifrost_python
     NodeView.cpp
     NodeBunchIter.h
     NodeBunchIter.cpp
+    EdgeView.h
+    EdgeView.cpp
     BifrostDiGraph.h
     BifrostDiGraph.cpp
     bifrost_python.cpp

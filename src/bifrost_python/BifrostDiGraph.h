@@ -4,6 +4,7 @@
 
 #include "Pyfrost.h"
 #include "NodeView.h"
+#include "EdgeView.h"
 #include "NodeBunchIter.h"
 #include "AdjacencyProxy.h"
 
@@ -19,20 +20,23 @@ namespace pyfrost {
 
 class BifrostDiGraph {
 public:
-    BifrostDiGraph() : nodes(dbg),
+    friend class EdgeView;
+
+    BifrostDiGraph() : nodes(dbg), edges(*this),
         succ(dbg, AdjacencyType::SUCCESSORS),
         pred(dbg, AdjacencyType::PREDECESSORS) {
 
         populateAttrs();
     }
-    BifrostDiGraph(BifrostDiGraph const& o) : dbg(o.dbg), nodes(dbg),
+    BifrostDiGraph(BifrostDiGraph const& o) : dbg(o.dbg), nodes(dbg), edges(*this),
         succ(dbg, AdjacencyType::SUCCESSORS),
         pred(dbg, AdjacencyType::PREDECESSORS),
         attr(o.attr) {
 
         populateAttrs();
     }
-    BifrostDiGraph(BifrostDiGraph&& o) noexcept : dbg(std::move(o.dbg)), nodes(dbg),
+
+    BifrostDiGraph(BifrostDiGraph&& o) noexcept : dbg(std::move(o.dbg)), nodes(dbg), edges(*this),
         succ(dbg, AdjacencyType::SUCCESSORS),
         pred(dbg, AdjacencyType::PREDECESSORS),
         attr(std::move(o.attr)) {
@@ -40,7 +44,7 @@ public:
         populateAttrs();
     }
 
-    explicit BifrostDiGraph(PyfrostCCDBG&& o) noexcept : dbg(std::move(o)), nodes(dbg),
+    explicit BifrostDiGraph(PyfrostCCDBG&& o) noexcept : dbg(std::move(o)), nodes(dbg), edges(*this),
         succ(dbg, AdjacencyType::SUCCESSORS),
         pred(dbg, AdjacencyType::PREDECESSORS) {
 
@@ -115,6 +119,7 @@ private:
 
     PyfrostCCDBG dbg;
     NodeView nodes;
+    EdgeView edges;
     AdjacencyProxy succ;
     AdjacencyProxy pred;
     py::dict attr;

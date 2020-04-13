@@ -32,6 +32,7 @@ PYBIND11_MODULE(bifrost_python, m) {
     pyfrost::define_UnitigDataProxy(m);
     pyfrost::define_UnitigMapping(m);
     pyfrost::define_NodeView(m);
+    pyfrost::define_EdgeView(m);
     pyfrost::define_AdjacencyProxy(m);
     pyfrost::define_BifrostDiGraph(m);
 

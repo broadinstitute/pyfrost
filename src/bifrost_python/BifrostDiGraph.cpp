@@ -158,7 +158,7 @@ void define_BifrostDiGraph(py::module& m) {
         })
 
         .def("nbunch_iter", [] (BifrostDiGraph const& self, const py::iterable& nbunch) {
-            return py::make_iterator(NodeBunchIter(self, nbunch.begin()), NodeBunchIter(self, nbunch.end()));
+            return py::make_iterator(NodeBunchIter(nbunch.begin()), NodeBunchIter(nbunch.end()));
         }, py::keep_alive<0, 1>())
 
         .def("number_of_nodes", &BifrostDiGraph::numNodes, "Get the number of nodes.")
