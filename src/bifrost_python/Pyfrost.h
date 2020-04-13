@@ -9,6 +9,8 @@
 
 #include "UnitigDataDict.h"
 
+namespace py = pybind11;
+
 namespace pyfrost {
 
 using PyfrostCCDBG = ColoredCDBG<UnitigDataDict>;
