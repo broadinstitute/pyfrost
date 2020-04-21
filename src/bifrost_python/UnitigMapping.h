@@ -36,6 +36,10 @@ void define_UnitigMapping(py::module& m) {
         .def("__repr__", [] (PyfrostColoredUMap const& self) {
             stringstream repr;
 
+            if(self.isEmpty) {
+                return std::string("<UnitigMapping EMPTY>");
+            }
+
             repr << "<UnitigMapping Unitig=";
             if(self.size > (2*self.getGraph()->getK())) {
                 auto head = self.strand ? self.getUnitigHead() : self.getUnitigTail().twin();
