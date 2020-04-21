@@ -20,39 +20,50 @@ namespace pyfrost {
 
 class BifrostDiGraph {
 public:
-    friend class EdgeView;
+    friend class OutEdgeView;
+    friend class InEdgeView;
 
-    BifrostDiGraph() : nodes(dbg), edges(*this),
-        succ(dbg, AdjacencyType::SUCCESSORS),
-        pred(dbg, AdjacencyType::PREDECESSORS) {
-
-        populateAttrs();
-    }
-    BifrostDiGraph(BifrostDiGraph const& o) : dbg(o.dbg), nodes(dbg), edges(*this),
-        succ(dbg, AdjacencyType::SUCCESSORS),
-        pred(dbg, AdjacencyType::PREDECESSORS),
-        attr(o.attr) {
+    BifrostDiGraph() : nodes(dbg), out_edges(*this), in_edges(*this),
+                       succ(dbg, AdjacencyType::SUCCESSORS),
+                       pred(dbg, AdjacencyType::PREDECESSORS) {
 
         populateAttrs();
     }
-
-    BifrostDiGraph(BifrostDiGraph&& o) noexcept : dbg(std::move(o.dbg)), nodes(dbg), edges(*this),
-        succ(dbg, AdjacencyType::SUCCESSORS),
-        pred(dbg, AdjacencyType::PREDECESSORS),
-        attr(std::move(o.attr)) {
+    BifrostDiGraph(BifrostDiGraph const& o) : dbg(o.dbg), nodes(dbg), out_edges(*this), in_edges(*this),
+                                              succ(dbg, AdjacencyType::SUCCESSORS),
+                                              pred(dbg, AdjacencyType::PREDECESSORS),
+                                              attr(o.attr) {
 
         populateAttrs();
     }
 
-    explicit BifrostDiGraph(PyfrostCCDBG&& o) noexcept : dbg(std::move(o)), nodes(dbg), edges(*this),
-        succ(dbg, AdjacencyType::SUCCESSORS),
-        pred(dbg, AdjacencyType::PREDECESSORS) {
+    BifrostDiGraph(BifrostDiGraph&& o) noexcept : dbg(std::move(o.dbg)), nodes(dbg),
+                                                  out_edges(*this), in_edges(*this),
+                                                  succ(dbg, AdjacencyType::SUCCESSORS),
+                                                  pred(dbg, AdjacencyType::PREDECESSORS),
+                                                  attr(std::move(o.attr)) {
+
+        populateAttrs();
+    }
+
+    explicit BifrostDiGraph(PyfrostCCDBG&& o) noexcept : dbg(std::move(o)), nodes(dbg),
+                                                         out_edges(*this), in_edges(*this),
+                                                         succ(dbg, AdjacencyType::SUCCESSORS),
+                                                         pred(dbg, AdjacencyType::PREDECESSORS) {
 
         populateAttrs();
     }
 
     inline NodeView const& getNodeView() const {
         return nodes;
+    }
+
+    inline OutEdgeView const& getOutEdgeView() const {
+        return out_edges;
+    }
+
+    inline InEdgeView const& getInEdgeView() const {
+        return in_edges;
     }
 
     inline AdjacencyProxy const& getSuccessorsProxy() const {
@@ -119,7 +130,8 @@ private:
 
     PyfrostCCDBG dbg;
     NodeView nodes;
-    EdgeView edges;
+    OutEdgeView out_edges;
+    InEdgeView in_edges;
     AdjacencyProxy succ;
     AdjacencyProxy pred;
     py::dict attr;

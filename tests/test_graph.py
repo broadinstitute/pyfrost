@@ -171,3 +171,27 @@ def test_iteration(mccortex):
     assert next(g.successors(u1))
 
     assert next(g.predecessors(u2))
+
+
+def test_in_out_edges(mccortex):
+    g = mccortex
+
+    for s, t in g.edges:
+        successors = set(g.successors(s))
+        assert t in successors
+
+    assert len(g.edges) == 7
+
+    assert ("ACTGA", "TCGAT") in g.edges
+
+    u1 = g.find("ACTGA").get_full_mapping()
+    u2 = g.find("TCGAT").get_full_mapping()
+
+    assert (u1, u2) in g.edges
+
+    u3 = g.find("ATCGA").get_full_mapping()
+
+    assert (u1, u3) not in g.edges
+
+    assert g.edges[u1, u2]['orientation'] == (u1.data['strand'], u2.data['strand'])
+    assert g.edges[u1, u2]['label'] == "T"

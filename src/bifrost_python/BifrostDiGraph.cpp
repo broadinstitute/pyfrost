@@ -165,6 +165,10 @@ void define_BifrostDiGraph(py::module& m) {
 
         .def_property_readonly("nodes", &BifrostDiGraph::getNodeView,
                                "Get nodes in the graph.")
+        .def_property_readonly("edges", &BifrostDiGraph::getOutEdgeView, "Get the outgoing edges of a graph.")
+        .def_property_readonly("out_edges", &BifrostDiGraph::getOutEdgeView, "Get the outgoing edges of a graph.")
+        .def_property_readonly("in_edges", &BifrostDiGraph::getInEdgeView, "Get the incoming edges of a graph.")
+
         .def_property_readonly("succ", &BifrostDiGraph::getSuccessorsProxy,
                                "Get successors keyed by node.")
         .def_property_readonly("adj", &BifrostDiGraph::getSuccessorsProxy,
