@@ -3,6 +3,8 @@
 
 namespace pyfrost {
 
+NodeBunchIter::NodeBunchIter() : wrapped(py::iterator::sentinel()) { }
+
 NodeBunchIter::NodeBunchIter(py::iterator iter) : wrapped(std::move(iter)) { }
 
 NodeBunchIter::value_type NodeBunchIter::operator*() {
@@ -14,7 +16,7 @@ NodeBunchIter::value_type NodeBunchIter::operator*() {
     return {};
 }
 
-NodeBunchIter::pointer NodeBunchIter::operator->() {
+NodeBunchIter::pointer NodeBunchIter::operator->() const {
     static const NodeBunchIter::value_type empty;
 
     if(py::isinstance<NodeBunchIter::value_type>(*wrapped)) {
@@ -44,11 +46,11 @@ NodeBunchIter NodeBunchIter::operator++(int) {
     return tmp;
 }
 
-bool NodeBunchIter::operator==(NodeBunchIter const &o) {
+bool NodeBunchIter::operator==(NodeBunchIter const &o) const {
     return wrapped == o.wrapped;
 }
 
-bool NodeBunchIter::operator!=(NodeBunchIter const &o) {
+bool NodeBunchIter::operator!=(NodeBunchIter const &o) const {
     return !operator==(o);
 }
 

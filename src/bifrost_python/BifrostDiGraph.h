@@ -20,16 +20,13 @@ namespace pyfrost {
 
 class BifrostDiGraph {
 public:
-    friend class OutEdgeView;
-    friend class InEdgeView;
-
-    BifrostDiGraph() : nodes(dbg), out_edges(*this), in_edges(*this),
+    BifrostDiGraph() : nodes(dbg), out_edges(dbg), in_edges(dbg),
                        succ(dbg, AdjacencyType::SUCCESSORS),
                        pred(dbg, AdjacencyType::PREDECESSORS) {
 
         populateAttrs();
     }
-    BifrostDiGraph(BifrostDiGraph const& o) : dbg(o.dbg), nodes(dbg), out_edges(*this), in_edges(*this),
+    BifrostDiGraph(BifrostDiGraph const& o) : dbg(o.dbg), nodes(dbg), out_edges(dbg), in_edges(dbg),
                                               succ(dbg, AdjacencyType::SUCCESSORS),
                                               pred(dbg, AdjacencyType::PREDECESSORS),
                                               attr(o.attr) {
@@ -38,7 +35,7 @@ public:
     }
 
     BifrostDiGraph(BifrostDiGraph&& o) noexcept : dbg(std::move(o.dbg)), nodes(dbg),
-                                                  out_edges(*this), in_edges(*this),
+                                                  out_edges(dbg), in_edges(dbg),
                                                   succ(dbg, AdjacencyType::SUCCESSORS),
                                                   pred(dbg, AdjacencyType::PREDECESSORS),
                                                   attr(std::move(o.attr)) {
@@ -47,7 +44,7 @@ public:
     }
 
     explicit BifrostDiGraph(PyfrostCCDBG&& o) noexcept : dbg(std::move(o)), nodes(dbg),
-                                                         out_edges(*this), in_edges(*this),
+                                                         out_edges(dbg), in_edges(dbg),
                                                          succ(dbg, AdjacencyType::SUCCESSORS),
                                                          pred(dbg, AdjacencyType::PREDECESSORS) {
 
@@ -58,11 +55,11 @@ public:
         return nodes;
     }
 
-    inline OutEdgeView const& getOutEdgeView() const {
+    inline EdgeView<true> const& getOutEdgeView() const {
         return out_edges;
     }
 
-    inline InEdgeView const& getInEdgeView() const {
+    inline EdgeView<false> const& getInEdgeView() const {
         return in_edges;
     }
 
@@ -130,8 +127,8 @@ private:
 
     PyfrostCCDBG dbg;
     NodeView nodes;
-    OutEdgeView out_edges;
-    InEdgeView in_edges;
+    EdgeView<true> out_edges;
+    EdgeView<false> in_edges;
     AdjacencyProxy succ;
     AdjacencyProxy pred;
     py::dict attr;

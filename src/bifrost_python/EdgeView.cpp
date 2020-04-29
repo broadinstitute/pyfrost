@@ -21,161 +21,87 @@ py::dict makeEdgeDataDict(PyfrostColoredUMap const& n1, PyfrostColoredUMap const
     return meta;
 }
 
-PyfrostColoredUMap findNode(PyfrostCCDBG& dbg, py::object const& n) {
-    PyfrostColoredUMap node;
-
-    if (py::isinstance<py::str>(n)) {
-        auto str = n.cast<std::string>();
-        node = dbg.find(Kmer(str.c_str()), true).mappingToFullUnitig();
-    } else if (py::isinstance<Kmer>(n)) {
-        node = dbg.find(n.cast<Kmer>(), true).mappingToFullUnitig();
-    } else if (py::isinstance<PyfrostColoredUMap>(n)) {
-        node = n.cast<PyfrostColoredUMap>();
-    } else {
-        throw py::type_error("Unsupported type given, only str, Kmer and UnitigMapping objects supported.");
-    }
-
-    if(node.isEmpty || !node.isFullMapping()) {
-        throw py::index_error("Node does not exists in the graph");
-    }
-
-    return node;
-}
-
-bool isSuccessor(PyfrostColoredUMap const& n1, PyfrostColoredUMap const& n2) {
-    for(auto const& succ : n1.getSuccessors()) {
-        if(succ == n2) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool isPredecessor(PyfrostColoredUMap const& n1, PyfrostColoredUMap const& n2) {
-    for(auto const& pred : n1.getPredecessors()) {
-        if(pred == n2) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-//
-// OutEdgeView
-// -----------
-//
-
-OutEdgeView::OutEdgeView(BifrostDiGraph& dbg) : dbg(dbg) { }
-
-py::dict OutEdgeView::get(py::tuple const& edge) {
-    py::dict metadata;
-
-    PyfrostColoredUMap n1 = findNode(dbg.dbg, edge[0]);
-    PyfrostColoredUMap n2 = findNode(dbg.dbg, edge[1]);
-
-    return get(n1, n2);
-}
-
-py::dict OutEdgeView::get(PyfrostColoredUMap const& n1, PyfrostColoredUMap const& n2) {
-    if(!isSuccessor(n1, n2)) {
-        throw py::index_error("Target node is not a successor of source node.");
-    }
-
-    return makeEdgeDataDict(n1, n2);
-}
-
-EdgeIterator<PyfrostCCDBG::iterator> OutEdgeView::begin() const {
-    return {dbg.getNodeView().begin(), dbg.getNodeView().end()};
-}
-
-EdgeIterator<PyfrostCCDBG::iterator> OutEdgeView::end() const {
-    return {};
-}
-
-bool OutEdgeView::contains(const py::tuple &edge) {
-    auto n1 = findNode(dbg.dbg, edge[0]);
-    auto n2 = findNode(dbg.dbg, edge[1]);
-
-    return isSuccessor(n1, n2);
-}
-
-size_t OutEdgeView::size() const {
-    size_t num_edges = 0;
-    for(auto const& um : dbg.getNodeView()) {
-        num_edges += um.getSuccessors().cardinality();
-    }
-
-    return num_edges;
-}
-
-//
-// InEdgeView
-// -----------
-//
-
-InEdgeView::InEdgeView(BifrostDiGraph& dbg) : dbg(dbg) { }
-
-py::dict InEdgeView::get(py::tuple const& edge) {
-    PyfrostColoredUMap n1 = findNode(dbg.dbg, edge[0]);
-    PyfrostColoredUMap n2 = findNode(dbg.dbg, edge[1]);
-
-    return get(n1, n2);
-}
-
-py::dict InEdgeView::get(PyfrostColoredUMap const& n1, PyfrostColoredUMap const& n2) {
-    if(!isSuccessor(n1, n2)) {
-        throw py::index_error("Edge not does exists");
-    }
-
-    return makeEdgeDataDict(n1, n2);
-}
-
-EdgeIterator<PyfrostCCDBG::iterator, false> InEdgeView::begin() const {
-    return {dbg.getNodeView().begin(), dbg.getNodeView().end()};
-}
-
-EdgeIterator<PyfrostCCDBG::iterator, false> InEdgeView::end() const {
-    return {};
-}
-
-bool InEdgeView::contains(const py::tuple &edge) {
-    auto n1 = findNode(dbg.dbg, edge[0]);
-    auto n2 = findNode(dbg.dbg, edge[1]);
-
-    return isSuccessor(n1, n2);
-}
-
-size_t InEdgeView::size() const {
-    size_t num_edges = 0;
-    for(auto const& um : dbg.getNodeView()) {
-        num_edges += um.getPredecessors().cardinality();
-    }
-
-    return num_edges;
-}
-
-
 void define_EdgeView(py::module& m) {
-    auto py_OutEdgeView = py::class_<OutEdgeView>(m, "OutEdgeView")
-        .def("__getitem__", py::overload_cast<py::tuple const&>(&OutEdgeView::get), py::is_operator())
-        .def("__contains__", &OutEdgeView::contains, py::is_operator())
-        .def("__len__", &OutEdgeView::size)
-        .def("__iter__", [] (OutEdgeView const& self) {
+    py::class_<EdgeDataView<true>>(m, "OutEdgeDataView")
+        .def("__getitem__", &EdgeDataView<true>::get, py::is_operator())
+        .def("__contains__", &EdgeDataView<true>::contains, py::is_operator())
+        .def("__len__", &EdgeDataView<true>::size, py::is_operator())
+        .def("__iter__", [] (EdgeDataView<true> const& self) {
+            if(!self.hasNodeBunch()) {
+                return py::make_iterator(self.all_begin(), self.all_end());
+            } else {
+                return py::make_iterator(self.nbunch_begin(), self.nbunch_end());
+            }
+        }, py::keep_alive<0, 1>());
+
+    py::class_<EdgeDataView<false>>(m, "InEdgeDataView")
+        .def("__getitem__", &EdgeDataView<false>::get, py::is_operator())
+        .def("__contains__", &EdgeDataView<false>::contains, py::is_operator())
+        .def("__len__", &EdgeDataView<false>::size, py::is_operator())
+        .def("__iter__", [] (EdgeDataView<false> const& self) {
+            if(!self.hasNodeBunch()) {
+                return py::make_iterator(self.all_begin(), self.all_end());
+            } else {
+                return py::make_iterator(self.nbunch_begin(), self.nbunch_end());
+            }
+        }, py::keep_alive<0, 1>());
+
+    auto py_OutEdgeView = py::class_<EdgeView<true>>(m, "OutEdgeView")
+        .def("__getitem__", py::overload_cast<py::tuple const&>(&EdgeView<true>::get), py::is_operator())
+        .def("__contains__", &EdgeView<true>::contains, py::is_operator())
+        .def("__len__", &EdgeView<true>::size)
+        .def("__iter__", [] (EdgeView<true> const& self) {
             return py::make_iterator(self.begin(), self.end());
+        }, py::keep_alive<0, 1>())
+
+        // Make it callable and return a OutEdgeDataView if requested
+        .def("__call__", [] (EdgeView<true> const& self) {
+            // No arguments given, just iterate over edges
+            return py::make_iterator(self.begin(), self.end());
+        }, py::keep_alive<0, 1>())
+        .def("__call__", [] (EdgeView<true>& self, py::iterable const& nbunch, py::object const& data,
+                             py::object const& default_value) {
+            // Now with potential data or given nodes
+            return new EdgeDataView<true>(self, nbunch, data, default_value);
+        }, py::arg("nbunch") = py::none(), py::arg("data") = false, py::arg("default") = py::none(),
+            py::keep_alive<0, 1>())
+        .def("__call__", [] (EdgeView<true>& self, py::kwargs const& kwargs) {
+            auto nbunch = kwargs.contains("nbunch") ? kwargs["nbunch"].cast<py::object>() : py::none();
+            auto data = kwargs.contains("data") ? kwargs["data"].cast<py::object>() : py::cast<bool>(false);
+            auto default_value = kwargs.contains("default") ? kwargs["default"].cast<py::object>() : py::none();
+
+            return new EdgeDataView<true>(self, nbunch, data, default_value);
         }, py::keep_alive<0, 1>());
 
     auto Mapping = py::module::import("collections.abc").attr("Mapping");
     auto Set = py::module::import("collections.abc").attr("Set");
     py_OutEdgeView.attr("__bases__") = py::make_tuple(Mapping, Set).attr("__add__")(py_OutEdgeView.attr("__bases__"));
 
-    auto py_InEdgeView = py::class_<InEdgeView>(m, "InEdgeView")
-        .def("__getitem__", py::overload_cast<py::tuple const&>(&InEdgeView::get), py::is_operator())
-        .def("__contains__", &InEdgeView::contains, py::is_operator())
-        .def("__len__", &InEdgeView::size)
-        .def("__iter__", [] (InEdgeView const& self) {
+    auto py_InEdgeView = py::class_<EdgeView<false>>(m, "InEdgeView")
+        .def("__getitem__", py::overload_cast<py::tuple const&>(&EdgeView<false>::get), py::is_operator())
+        .def("__contains__", &EdgeView<false>::contains, py::is_operator())
+        .def("__len__", &EdgeView<false>::size)
+        .def("__iter__", [] (EdgeView<false> const& self) {
             return py::make_iterator(self.begin(), self.end());
+        }, py::keep_alive<0, 1>())
+
+        // Make it callable and return an InEdgeDataView if requested
+        .def("__call__", [] (EdgeView<false> const& self) {
+            // No arguments given, just iterate over edges
+            return py::make_iterator(self.begin(), self.end());
+        }, py::keep_alive<0, 1>())
+        .def("__call__", [] (EdgeView<false>& self, py::iterable const& nbunch, py::object const& data,
+                             py::object const& default_value) {
+             // Now with potential data or given nodes
+             return new EdgeDataView<false>(self, nbunch, data, default_value);
+         }, py::arg("nbunch") = py::none(), py::arg("data") = false, py::arg("default") = py::none(),
+         py::keep_alive<0, 1>())
+        .def("__call__", [] (EdgeView<false>& self, py::kwargs const& kwargs) {
+            auto nbunch = kwargs.contains("nbunch") ? kwargs["nbunch"].cast<py::object>() : py::none();
+            auto data = kwargs.contains("data") ? kwargs["data"].cast<py::object>() : py::cast<bool>(false);
+            auto default_value = kwargs.contains("default") ? kwargs["default"].cast<py::object>() : py::none();
+
+            return new EdgeDataView<false>(self, nbunch, data, default_value);
         }, py::keep_alive<0, 1>());
 
     py_InEdgeView.attr("__bases__") = py::make_tuple(Mapping, Set).attr("__add__")(py_InEdgeView.attr("__bases__"));

@@ -95,3 +95,99 @@ def test_unitig_colors(mccortex):
     colors = list(iter(n1.data['colors']))
 
     assert colors == [(i, 0) for i in range(n1.data['length'] - g.graph['k'] + 1)]
+
+
+def test_edge_dataview(mccortex):
+    g = mccortex
+
+    for s, t in g.edges():
+        successors = set(g.successors(s))
+        assert t in successors
+
+    for s, t, data in g.edges(data=True):
+        assert isinstance(data, dict)
+        assert 'label' in data
+        assert 'orientation' in data
+
+        orientation = data['orientation']
+        assert orientation[0] == s.data['strand']
+        assert orientation[1] == t.data['strand']
+
+    for s, t, orientation in g.edges(data="orientation"):
+        assert orientation[0] == s.data['strand']
+        assert orientation[1] == t.data['strand']
+
+    for s, t, non_existent in g.edges(data="dghfkjgjk"):
+        assert non_existent is None
+
+    for s, t, non_existent in g.edges(data="jfgskdfjghk", default=False):
+        assert non_existent is False
+
+
+def test_edge_dataview_nbunch(mccortex):
+    g = mccortex
+
+    u1 = g.find('ACTGA').get_full_mapping()
+    u2 = g.find('TCGAT').get_full_mapping()
+
+    edges = set(g.edges([u1, u2]))
+
+    u3 = g.find('TCGAA').get_full_mapping()
+    u4 = g.find('CGATG').get_full_mapping()
+
+    assert edges == {
+        (u1, u2),
+        (u1, u3),
+        (u2, u4)
+    }
+
+    assert len(g.edges([u1, u2])) == 3
+    assert len(g.edges([u1, u2, None])) == 3
+
+    edges = [e for e in sorted(g.edges([u1, u2], data=True),
+                               key=lambda e: (e[0].head, e[1].head))]
+
+    for n1, n2, d in edges:
+        assert isinstance(d, dict)
+
+    edges_ = [(n1, n2) for n1, n2, _ in edges]
+    assert edges_ == [
+        (u1, u3),
+        (u1, u2),
+        (u2, u4)
+    ]
+
+    edges = set(g.edges([u1, u2], data="label"))
+    assert edges == {
+        (u1, u2, "T"),
+        (u1, u3, "A"),
+        (u2, u4, "G")
+    }
+
+    edges = set(g.edges([u1, u2], data="non_existent", default="test"))
+    assert edges == {
+        (u1, u2, "test"),
+        (u1, u3, "test"),
+        (u2, u4, "test")
+    }
+
+    assert (u1, u2) in g.edges(data=True)
+    assert (u1, u2, g.edges[u1, u2]) in g.edges(data=True)
+    assert (u1, u2, "T") in g.edges(data="label")
+
+    assert (u1, u4) not in g.edges(data=True)
+    assert (u1, u2, "G") not in g.edges(data="label")
+
+    assert len(g.in_edges([u3, u2])) == 4
+
+    edges = set(g.in_edges([u3, u2]))
+    u5 = g.find('ATCGA').get_full_mapping()
+
+    assert edges == {
+        (u1, u3),
+        (u5, u3),
+        (u1, u2),
+        (u5, u2),
+    }
+
+

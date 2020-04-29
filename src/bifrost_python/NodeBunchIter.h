@@ -18,18 +18,19 @@ public:
     using reference = value_type&;
     using pointer = value_type const*;
 
+    NodeBunchIter();
     explicit NodeBunchIter(py::iterator iter);
     NodeBunchIter(NodeBunchIter const& o) = default;
     NodeBunchIter(NodeBunchIter&& o) = default;
 
     value_type operator*();
-    pointer operator->();
+    pointer operator->() const;
 
     NodeBunchIter& operator++();
     NodeBunchIter operator++(int);
 
-    bool operator==(NodeBunchIter const& o);
-    bool operator!=(NodeBunchIter const& o);
+    bool operator==(NodeBunchIter const& o) const;
+    bool operator!=(NodeBunchIter const& o) const;
 };
 
 }
