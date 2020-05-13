@@ -54,12 +54,28 @@ def test_unitig_data(mccortex):
     g = mccortex
 
     kmer1 = g.find('ACTGA', True)
+    kmer2 = g.find('TCGAA', True)
+    kmer3 = g.find('TGATT')
+    kmer4 = g.find('GAAAT')
 
     assert kmer1.data['is_full_mapping'] is False
     assert isinstance(kmer1.data['pos'], int)
+
     assert isinstance(kmer1.data['length'], int)
     assert isinstance(kmer1.data['unitig_length'], int)
+    assert kmer1.data['unitig_length'] == 7
+
+    assert kmer1.data['pos'] == 0
     assert kmer1.data['strand'] == Strand.REVERSE
+
+    assert kmer2.data['pos'] == 0
+    assert kmer2.data['strand'] == Strand.FORWARD
+
+    assert kmer3.data['pos'] == 2
+    assert kmer3.data['strand'] == Strand.REVERSE
+
+    assert kmer4.data['pos'] == 2
+    assert kmer4.data['strand'] == Strand.FORWARD
 
     n1 = kmer1.get_full_mapping()
     assert n1.data['is_full_mapping'] is True
@@ -94,7 +110,7 @@ def test_unitig_colors(mccortex):
     n1 = kmer1.get_full_mapping()
     colors = list(iter(n1.data['colors']))
 
-    assert colors == [(i, 0) for i in range(n1.data['length'] - g.graph['k'] + 1)]
+    assert colors == [(i, 0) for i in range(n1.data['length'])]
 
 
 def test_edge_dataview(mccortex):
