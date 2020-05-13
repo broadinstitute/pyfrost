@@ -30,8 +30,7 @@ const std::unordered_map<std::string, UnitigMetaKeys> UnitigDataProxy::hardcoded
 
 bool UnitigDataProxy::contains(const std::string &key) const {
     if(getMetaKey(key) == UnitigMetaKeys::NONE) {
-        //return getDataDict().contains(key.c_str());
-        return false;
+        return getDataDict().contains(key.c_str());
     }
 
     return true;
@@ -40,16 +39,16 @@ bool UnitigDataProxy::contains(const std::string &key) const {
 py::object UnitigDataProxy::getData(std::string const& key) const {
     switch(getMetaKey(key)) {
         case UnitigMetaKeys::LENGTH:
-            return py::cast(mappedStringLength());
+            return py::cast(unitig.len);
 
         case UnitigMetaKeys::POS:
-            return py::cast(unitig.dist);
+            return py::cast(unitig.strand ? unitig.dist : (unitig.size - unitig.getGraph()->getK() - unitig.dist));
 
         case UnitigMetaKeys::STRAND:
             return py::cast(unitig.strand ? Strand::FORWARD : Strand::REVERSE);
 
         case UnitigMetaKeys::UNITIG_LENGTH:
-            return py::cast(unitig.size);
+            return py::cast(unitig.size - unitig.getGraph()->getK() + 1);
 
         case UnitigMetaKeys::IS_FULL_MAPPING:
             return py::cast(unitig.isFullMapping());
