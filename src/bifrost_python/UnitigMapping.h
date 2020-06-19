@@ -65,7 +65,7 @@ void define_UnitigMapping(py::module& m) {
             }
 
             repr << " MapPos=" << self.dist;
-            repr << " MapLen=" << UnitigDataProxy(self).mappedStringLength();
+            repr << " MapLen=" << UnitigDataProxy(self).mappedSequenceLength();
             repr << " UnitigSize=" << self.size;
             repr << " Strand=" << (self.strand ? "forward" : "reverse") << ">";
 

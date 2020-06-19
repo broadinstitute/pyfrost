@@ -5,6 +5,7 @@ namespace pyfrost {
 
 void define_UnitigDataProxy(py::module& m) {
     auto handle = py::class_<UnitigDataProxy>(m, "UnitigDataProxy")
+        // Dict like interface
         .def("__getitem__", &UnitigDataProxy::getData, py::is_operator())
         .def("__setitem__", &UnitigDataProxy::setData, py::is_operator())
         .def("__delitem__", &UnitigDataProxy::delData, py::is_operator())
@@ -12,7 +13,16 @@ void define_UnitigDataProxy(py::module& m) {
         .def("__len__", &UnitigDataProxy::size)
         .def("__iter__", [] (UnitigDataProxy const& self) {
             return py::make_iterator(self.begin(), self.end());
-        }, py::keep_alive<0, 1>());
+        }, py::keep_alive<0, 1>())
+
+        .def("__str__", &UnitigDataProxy::mappedSequence)
+
+        .def("twin", [] (UnitigDataProxy const& self) {
+            return self.unitigTail().twin();
+        })
+        .def("full_node", [] (UnitigDataProxy const& self) {
+            return UnitigDataProxy(self.mappingToFullUnitig());
+        });
 
     // Hack to let our UnitigDataProxy inherit from the collections.abc.MutableMapping Python mixin
     auto MutableMapping = py::module::import("collections.abc").attr("MutableMapping");
@@ -23,6 +33,10 @@ const std::unordered_map<std::string, UnitigMetaKeys> UnitigDataProxy::hardcoded
     {"length",          UnitigMetaKeys::LENGTH},
     {"pos",             UnitigMetaKeys::POS},
     {"strand",          UnitigMetaKeys::STRAND},
+    {"head",            UnitigMetaKeys::HEAD},
+    {"tail",            UnitigMetaKeys::TAIL},
+    {"mapped_sequence", UnitigMetaKeys::MAPPED_SEQUENCE},
+    {"unitig_sequence", UnitigMetaKeys::UNITIG_SEQUENCE},
     {"unitig_length",   UnitigMetaKeys::UNITIG_LENGTH},
     {"is_full_mapping", UnitigMetaKeys::IS_FULL_MAPPING},
     {"colors",          UnitigMetaKeys::COLORS}
@@ -42,13 +56,27 @@ py::object UnitigDataProxy::getData(std::string const& key) const {
             return py::cast(unitig.len);
 
         case UnitigMetaKeys::POS:
-            return py::cast(unitig.strand ? unitig.dist : (unitig.size - unitig.getGraph()->getK() - unitig.dist));
+            return py::cast((unitig.strand || unitig.isFullMapping())
+                ? unitig.dist
+                : (unitig.size - unitig.getGraph()->getK() - unitig.dist));
 
         case UnitigMetaKeys::STRAND:
             return py::cast(unitig.strand ? Strand::FORWARD : Strand::REVERSE);
 
+        case UnitigMetaKeys::HEAD:
+            return py::cast(unitigHead());
+
+        case UnitigMetaKeys::TAIL:
+            return py::cast(unitigTail());
+
+        case UnitigMetaKeys::MAPPED_SEQUENCE:
+            return py::cast(mappedSequence());
+
+        case UnitigMetaKeys::UNITIG_SEQUENCE:
+            return py::cast(unitigSequence());
+
         case UnitigMetaKeys::UNITIG_LENGTH:
-            return py::cast(unitig.size - unitig.getGraph()->getK() + 1);
+            return py::cast(unitigLength());
 
         case UnitigMetaKeys::IS_FULL_MAPPING:
             return py::cast(unitig.isFullMapping());
@@ -91,8 +119,28 @@ size_t UnitigDataProxy::size() const {
     return hardcoded_keys.size() + getDataDict().size();
 }
 
-size_t UnitigDataProxy::mappedStringLength() const {
+std::string UnitigDataProxy::mappedSequence() const {
+    return unitig.mappedSequenceToString();
+}
+
+size_t UnitigDataProxy::mappedSequenceLength() const {
     return unitig.getGraph()->getK() + unitig.len - 1;
+}
+
+std::string UnitigDataProxy::unitigSequence() const {
+    return unitig.strand ? unitig.referenceUnitigToString() : reverse_complement(unitig.referenceUnitigToString());
+}
+
+size_t UnitigDataProxy::unitigLength() const {
+    return unitig.size - unitig.getGraph()->getK() + 1;
+}
+
+Kmer UnitigDataProxy::unitigHead() const {
+    return unitig.strand ? unitig.getUnitigHead() : unitig.getUnitigTail().twin();
+}
+
+Kmer UnitigDataProxy::unitigTail() const {
+    return unitig.strand ? unitig.getUnitigTail() : unitig.getUnitigHead().twin();
 }
 
 UnitigDataKeyIterator UnitigDataProxy::begin() const {

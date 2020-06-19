@@ -1,3 +1,4 @@
+#include "DegreeView.h"
 #include "BifrostDiGraph.h"
 
 namespace pyfrost {
@@ -96,57 +97,58 @@ void define_BifrostDiGraph(py::module& m) {
         .def(py::init<>())
         .def(py::init<BifrostDiGraph const&>())
 
-        .def("__getitem__", py::overload_cast<PyfrostColoredUMap const&>(&BifrostDiGraph::getSuccessors),
-             "Access a node")
         .def("__getitem__", py::overload_cast<Kmer const&>(&BifrostDiGraph::getSuccessors),
              "Access a node")
         .def("__getitem__", py::overload_cast<char const*>(&BifrostDiGraph::getSuccessors),
              "Access a node")
+
+        .def("__contains__", py::overload_cast<Kmer const&>(&BifrostDiGraph::contains))
+        .def("__contains__", py::overload_cast<char const*>(&BifrostDiGraph::contains))
 
         .def("find", py::overload_cast<Kmer const&, bool>(&BifrostDiGraph::findUnitig), py::arg("kmer"),
              py::arg("extremities_only") = false)
         .def("find", py::overload_cast<char const*, bool>(&BifrostDiGraph::findUnitig), py::arg("kmer"),
              py::arg("extremities_only") = false)
 
-            // neigbors, successors, and predececessors all should return an iterator
-        .def("neighbors", [] (BifrostDiGraph& self, PyfrostColoredUMap const& node) {
-            auto view = self.getSuccessors(node);
-            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
-        })
+        // neigbors, successors, and predececessors all should return an iterator
         .def("neighbors", [] (BifrostDiGraph& self, Kmer const& node) {
             auto view = self.getSuccessors(node);
-            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+            return py::make_iterator(view.begin(), view.end());
         })
         .def("neighbors", [] (BifrostDiGraph& self, char const* node) {
             auto view = self.getSuccessors(node);
-            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+            return py::make_iterator(view.begin(), view.end());
         })
 
-        .def("successors", [] (BifrostDiGraph& self, PyfrostColoredUMap const& node) {
-            auto view = self.getSuccessors(node);
-            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
-        })
         .def("successors", [] (BifrostDiGraph& self, Kmer const& node) {
             auto view = self.getSuccessors(node);
-            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+            return py::make_iterator(view.begin(), view.end());
         })
         .def("successors", [] (BifrostDiGraph& self, char const* node) {
             auto view = self.getSuccessors(node);
-            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+            return py::make_iterator(view.begin(), view.end());
         })
 
-        .def("predecessors", [] (BifrostDiGraph& self, PyfrostColoredUMap const& node) {
-            auto view = self.getPredecessors(node);
-            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
-        })
         .def("predecessors", [] (BifrostDiGraph& self, Kmer const& node) {
             auto view = self.getPredecessors(node);
-            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+            return py::make_iterator(view.begin(), view.end());
         })
         .def("predecessors", [] (BifrostDiGraph& self, char const* node) {
             auto view = self.getPredecessors(node);
-            return py::make_iterator<py::return_value_policy::copy>(view->begin(), view->end());
+            return py::make_iterator(view.begin(), view.end());
         })
+
+        .def_property_readonly("degree", [] (BifrostDiGraph& self) {
+            return DegreeView<>(NodeIterable<>(self.getGraph()));
+        }, py::keep_alive<0, 1>())
+
+        .def_property_readonly("in_degree", [] (BifrostDiGraph& self) {
+            return InDegreeView<>(NodeIterable<>(self.getGraph()));
+        }, py::keep_alive<0, 1>())
+
+        .def_property_readonly("out_degree", [] (BifrostDiGraph& self) {
+            return OutDegreeView<>(NodeIterable<>(self.getGraph()));
+        }, py::keep_alive<0, 1>())
 
         .def("__len__", [] (BifrostDiGraph const& self) {
             return self.numNodes();
@@ -157,8 +159,11 @@ void define_BifrostDiGraph(py::module& m) {
                                                                     self.getSuccessorsProxy().end());
         })
 
-        .def("nbunch_iter", [] (BifrostDiGraph const& self, const py::iterable& nbunch) {
-            return py::make_iterator(NodeBunchIter(nbunch.begin()), NodeBunchIter(nbunch.end()));
+        .def("nbunch_iter", [] (BifrostDiGraph& self, const py::iterable& nbunch) {
+            return py::make_iterator(
+                NodeIterator<py::iterator>(&(self.getGraph()), nbunch.begin()),
+                NodeIterator<py::iterator>(&(self.getGraph()), nbunch.end())
+            );
         }, py::keep_alive<0, 1>())
 
         .def("number_of_nodes", &BifrostDiGraph::numNodes, "Get the number of nodes.")

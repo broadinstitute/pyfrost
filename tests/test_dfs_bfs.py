@@ -3,11 +3,13 @@ from collections import defaultdict
 import pytest  # noqa
 import networkx as nx
 
+from pyfrost import Kmer
+
 
 def test_dfs(mccortex):
     g = mccortex
 
-    start = g.find('ACTGA', True).get_full_mapping()
+    start = Kmer('ACTGA')
 
     visited = defaultdict(int)
     visited[start] = 1
@@ -18,18 +20,18 @@ def test_dfs(mccortex):
     for n in visited:
         assert visited[n] == 1
 
-    visited_set = set(str(n) for n in visited.keys())
+    visited_set = set(visited.keys())
     truth = {
-        "ACTGATTTCGA",
-        "TCGAAATCAGT",
-        "TCGAT",
-        "CGATGC",
-        "ATGCCAC",
-        "CCACCGTGG",
-        "CCACGGTGG",
-        "GCATCG",
-        "GTGGCAT",
-        "ATGCGAT"
+        Kmer("ACTGA"),
+        Kmer("TCGAA"),
+        Kmer("TCGAT"),
+        Kmer("CGATG"),
+        Kmer("ATGCC"),
+        Kmer("CCACC"),
+        Kmer("CCACG"),
+        Kmer("GCATC"),
+        Kmer("GTGGC"),
+        Kmer("ATGCG")
     }
 
     assert visited_set == truth
@@ -38,7 +40,7 @@ def test_dfs(mccortex):
 def test_bfs(mccortex):
     g = mccortex
 
-    start = g.find('ACTGA', True).get_full_mapping()
+    start = Kmer('ACTGA')
 
     visited = defaultdict(int)
     visited[start] = 1
@@ -49,18 +51,18 @@ def test_bfs(mccortex):
     for n in visited:
         assert visited[n] == 1
 
-    visited_set = set(str(n) for n in visited.keys())
+    visited_set = set(visited.keys())
     truth = {
-        "ACTGATTTCGA",
-        "TCGAAATCAGT",
-        "TCGAT",
-        "CGATGC",
-        "ATGCCAC",
-        "CCACCGTGG",
-        "CCACGGTGG",
-        "GCATCG",
-        "GTGGCAT",
-        "ATGCGAT"
+        Kmer("ACTGA"),
+        Kmer("TCGAA"),
+        Kmer("TCGAT"),
+        Kmer("CGATG"),
+        Kmer("ATGCC"),
+        Kmer("CCACC"),
+        Kmer("CCACG"),
+        Kmer("GCATC"),
+        Kmer("GTGGC"),
+        Kmer("ATGCG")
     }
 
     assert visited_set == truth

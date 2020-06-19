@@ -1,10 +1,13 @@
-#include <pybind11/pybind11.h>
-#include <NeighborIterator.hpp>
 
 #include "Pyfrost.h"
 
 #ifndef PYFROST_ADJACENCYVIEW_H
 #define PYFROST_ADJACENCYVIEW_H
+
+#include <pybind11/pybind11.h>
+#include <NeighborIterator.hpp>
+
+#include "NodeIterator.h"
 
 namespace py = pybind11;
 
@@ -17,20 +20,35 @@ enum class AdjacencyType {
 
 class AdjacencyViewBase {
 public:
-    explicit AdjacencyViewBase(PyfrostColoredUMap const& unitig) : unitig(unitig) {}
+    AdjacencyViewBase(PyfrostCCDBG& dbg, Kmer const& kmer) : dbg(dbg) {
+        node = getUnitig(kmer);
+    }
     virtual ~AdjacencyViewBase() { }
 
 protected:
-    PyfrostColoredUMap unitig;
+    PyfrostCCDBG& dbg;
+    PyfrostColoredUMap node;
 
 public:
-    inline virtual decltype(unitig.getSuccessors().begin()) begin() const = 0;
-    inline virtual decltype(unitig.getSuccessors().end()) end() const = 0;
+    using iterator_type = NodeIterator<decltype(node.getSuccessors().begin())>;
 
-    bool contains(PyfrostColoredUMap const& o) {
+    inline virtual iterator_type begin() const = 0;
+    inline virtual iterator_type end() const = 0;
+
+    PyfrostColoredUMap getUnitig(Kmer const& kmer) {
+        auto unitig = dbg.find(kmer, true).mappingToFullUnitig();
+
+        if(unitig.isEmpty) {
+            throw std::out_of_range("Node does not exist in the graph.");
+        }
+
+        return unitig;
+    }
+
+    bool contains(Kmer const& o) {
         // We have at most 4 neighbors so this should be quick enough, and could be considered constant time.
-        for(auto const& neighbor : *this) {
-            if(o == neighbor) {
+        for(Kmer const& neighbor : *this) {
+            if(o == neighbor && !is_kmer_empty(neighbor)) {
                 return true;
             }
         }
@@ -38,18 +56,8 @@ public:
         return false;
     }
 
-    bool contains(Kmer const& kmer) {
-        auto o = unitig.getGraph()->find(kmer, true);
-        return contains(o);
-    }
-
     bool contains(const char* kmer) {
-        auto o = unitig.getGraph()->find(Kmer(kmer), true);
-        return contains(o);
-    }
-
-    py::dict getEdgeDict(PyfrostColoredUMap const& o) {
-        return py::dict();
+        return contains(Kmer(kmer));
     }
 
     size_t numNeigbors() const {
@@ -65,27 +73,27 @@ public:
 
 class SuccessorView : public AdjacencyViewBase {
 public:
-    explicit SuccessorView(PyfrostColoredUMap const& unitig) : AdjacencyViewBase(unitig) { }
+    explicit SuccessorView(PyfrostCCDBG& dbg, Kmer const& kmer) : AdjacencyViewBase(dbg, kmer) { }
 
-    inline decltype(unitig.getSuccessors().begin()) begin() const override {
-        return unitig.getSuccessors().begin();
+    inline iterator_type begin() const override {
+        return {&dbg, node.getSuccessors().begin()};
     }
 
-    inline decltype(unitig.getSuccessors().end()) end() const override {
-        return unitig.getSuccessors().end();
+    inline iterator_type end() const override {
+        return {&dbg, node.getSuccessors().end()};
     }
 };
 
 class PredecessorView : public AdjacencyViewBase {
 public:
-    explicit PredecessorView(PyfrostColoredUMap const& unitig) : AdjacencyViewBase(unitig) { }
+    explicit PredecessorView(PyfrostCCDBG& dbg, Kmer const& kmer) : AdjacencyViewBase(dbg, kmer) { }
 
-    inline decltype(unitig.getPredecessors().begin()) begin() const override {
-        return unitig.getPredecessors().begin();
+    inline iterator_type begin() const override {
+        return {&dbg, node.getPredecessors().begin()};
     }
 
-    inline decltype(unitig.getPredecessors().end()) end() const override {
-        return unitig.getPredecessors().end();
+    inline iterator_type end() const override {
+        return {&dbg, node.getPredecessors().end()};
     }
 };
 
@@ -94,48 +102,33 @@ class AdjacencyProxy {
 public:
     AdjacencyProxy(PyfrostCCDBG& dbg, AdjacencyType type) : dbg(dbg), type(type) { }
 
-    inline AdjacencyViewBase* getView(PyfrostColoredUMap const& unitig) {
-        if(unitig.isEmpty) {
-            throw std::out_of_range("Node does not exist in the graph.");
-        }
-
-        if(type == AdjacencyType::SUCCESSORS) {
-            return new SuccessorView(unitig);
-        } else {
-            return new PredecessorView(unitig);
-        }
-    }
-
     inline AdjacencyViewBase* getView(Kmer const& kmer) {
-        auto unitig = dbg.find(kmer);
-        return getView(unitig);
+        if(type == AdjacencyType::SUCCESSORS) {
+            return new SuccessorView(dbg, kmer);
+        } else {
+            return new PredecessorView(dbg, kmer);
+        }
     }
 
     inline AdjacencyViewBase* getView(char const* kmer) {
-        auto unitig = dbg.find(Kmer(kmer));
-        return getView(unitig);
+        return getView(Kmer(kmer));
     }
 
     inline auto begin() const {
-        return dbg.begin();
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.begin());
     }
 
     inline auto end() const {
-        return dbg.end();
-    }
-
-    inline bool contains(PyfrostColoredUMap const& unitig) {
-        return unitig.dist == 0 && !unitig.isEmpty;
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.end());
     }
 
     inline bool contains(Kmer const& kmer) {
         auto um = dbg.find(kmer, true);
-        return contains(um);
+        return !um.isEmpty;
     }
 
     inline bool contains(char const* kmer) {
-        auto um = dbg.find(Kmer(kmer), true);
-        return contains(um);
+        return contains(Kmer(kmer));
     }
 
     size_t numNodes() const {

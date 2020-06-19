@@ -1,6 +1,7 @@
 import pytest
 
 import pyfrost
+from pyfrost import Kmer
 
 
 def test_find_unitig(mccortex):
@@ -10,36 +11,28 @@ def test_find_unitig(mccortex):
     assert len(g.nodes) == 6
 
     # Single k-mer which is a head of a unitig
-    kmer1 = g.find('ACTGA', True)
-
-    # A single k-mer should not be a node of the graph
-    assert kmer1 not in g
-    assert kmer1 not in g.nodes
-
-    # Get the full unitig
-    n1 = kmer1.get_full_mapping()
-
+    kmer1 = Kmer('ACTGA')
     assert str(kmer1) == "ACTGA"
-    assert str(n1) == "ACTGATTTCGA"
 
-    # Same node as above, but then reverse complement
-    kmer2 = g.find('TCGAA', True)
-    n2 = kmer2.get_full_mapping()
-    assert str(kmer2) == "TCGAA"
-    assert str(n2) == "TCGAAATCAGT"
+    # Kmer1 is the head of a unitig in the graph
+    assert kmer1 in g
+    assert kmer1 in g.nodes
 
-    # Single k-mer in the middle of an unitig
-    kmer3 = g.find('ATTTC')
-    n3 = kmer3.get_full_mapping()
+    # This kmer is in the middle of a unitig, so should not be a node
+    kmer2 = Kmer('GATTT')
+    assert kmer2 not in g
+    assert kmer2 not in g.nodes
 
-    assert str(kmer3) == "ATTTC"
-    assert str(n3) == "ACTGATTTCGA"
+    # Should also works with strings
+    assert "GATTT" not in g
+    assert "GATTT" not in g.nodes
 
-    # If extremities_only=True, then the above should return False
-    assert not g.find("ATTTC", True)
+    # Same node as kmer1, but then reverse complement
+    kmer3 = Kmer('TCGAA')
+    assert kmer3 in g
+    assert kmer3 in g.nodes
 
-    # Non-existent k-mer
-    assert not g.find("GGGGG")
+    assert str(kmer3) == "TCGAA"
 
 
 def test_graph_attr(mccortex):
@@ -55,23 +48,22 @@ def test_graph_attr(mccortex):
 def test_successors(mccortex):
     g = mccortex
 
-    n = g.find('ACTGA', True).get_full_mapping()
-    succ = [s for s in g.succ[n]]
+    n = Kmer('ACTGA')
+    succ = set(g.succ[n])
     assert len(succ) == 2
+    assert succ == {Kmer("TCGAA"), Kmer("TCGAT")}
 
-    succ_set = set(str(s) for s in g.succ[n])
-    assert succ_set == {"TCGAAATCAGT", "TCGAT"}
-
-    n2 = g.find('TCGAA', True).get_full_mapping()
+    n2 = Kmer('TCGAA')
     assert n2 in g.succ[n]
     assert n not in g.succ[n]
 
-    succ2 = [s for s in g.succ[n2]]
+    succ2 = set(g.succ[n2])
     assert len(succ2) == 0
-    assert set(str(s) for s in g.succ[n2]) == set()
+    assert succ2 == set()
 
-    assert set(str(s) for s in g[n]) == succ_set
-    assert set(str(s) for s in g.neighbors(n)) == succ_set
+    # Different ways to access successors
+    assert set(g[n]) == succ
+    assert set(g.neighbors(n)) == succ
 
     with pytest.raises(IndexError):
         _ = g.succ['GGGGG']
@@ -83,32 +75,29 @@ def test_successors(mccortex):
         _ = g.neighbors('GGGGG')
 
     with pytest.raises(IndexError):
-        _ = g.succ[pyfrost.Kmer('GGGGG')]
+        _ = g.succ[Kmer('GGGGG')]
 
 
 def test_predecessors(mccortex):
     g = mccortex
 
-    n = g.find('ACTGA', True).get_full_mapping()
-    pred = [p for p in g.pred[n]]
+    n = Kmer('ACTGA')
+    pred = set(g.pred[n])
     assert len(pred) == 0
     assert len(g.pred[n]) == 0
+    assert pred == set()
 
-    assert set(str(p) for p in g.pred[n]) == set()
-
-    n2 = g.find('TCGAA', True).get_full_mapping()
+    n2 = Kmer('TCGAA')
 
     assert n in g.pred[n2]
     assert n2 not in g.pred[n2]
 
-    pred2 = [s for s in g.pred[n2]]
+    pred2 = set(g.pred[n2])
     assert len(pred2) == 2
     assert len(g.pred[n2]) == 2
 
-    pred_set = set(str(p) for p in g.pred[n2])
-    assert pred_set == {"ACTGATTTCGA", "ATCGA"}
-
-    assert set(str(s) for s in g.predecessors(n2)) == pred_set
+    assert pred2 == {Kmer("ACTGA"), Kmer("ATCGA")}
+    assert set(g.predecessors(n2)) == pred2
 
     with pytest.raises(IndexError):
         _ = g.pred['GGGGG']
@@ -123,54 +112,54 @@ def test_predecessors(mccortex):
 def test_iteration(mccortex):
     g = mccortex
 
-    nodes = [n for n in g]
-    nodes_set = set(str(n) for n in nodes)
+    nodes = set(g)
 
-    assert nodes_set == {
-        "TCGAAATCAGT",
-        "CCACGGTGG",
-        "CGATGC",
-        "ATGCGAT",
-        "GTGGCAT",
-        "ATCGA",
+    assert nodes == {
+        Kmer("TCGAA"),
+        Kmer("CCACG"),
+        Kmer("CGATG"),
+        Kmer("ATGCG"),
+        Kmer("GTGGC"),
+        Kmer("ATCGA"),
     }
 
     node_set = set()
     for n in g:
-        node_set.add(str(n))
-        node_set.add(pyfrost.reverse_complement(str(n)))
+        node_set.add(n)
+        node_set.add(g.nodes[n].twin())
 
     truth = {
-        "ACTGATTTCGA", "TCGAAATCAGT",
-        "ATCGA", "TCGAT",
-        "CGATGC", "GCATCG",
-        "CCACCGTGG", "CCACGGTGG",
-        "ATCGCAT", "ATGCGAT",
-        "ATGCCAC", "GTGGCAT"
+        Kmer("ACTGA"), Kmer("TCGAA"),
+        Kmer("ATCGA"), Kmer("TCGAT"),
+        Kmer("CGATG"), Kmer("GCATC"),
+        Kmer("CCACC"), Kmer("CCACG"),
+        Kmer("ATCGC"), Kmer("ATGCG"),
+        Kmer("ATGCC"), Kmer("GTGGC")
     }
 
     assert node_set == truth
 
     node_set = set()
     for n in g.nodes:
-        node_set.add(str(n))
-        node_set.add(pyfrost.reverse_complement(str(n)))
+        node_set.add(n)
+        node_set.add(g.nodes[n].twin())
 
     assert node_set == truth
 
-    u1 = g.find('ACTGA', True).get_full_mapping()
-    u2 = g.find('TCGAA', True).get_full_mapping()
-    kmer1 = g.find('ATTTC')
+    n1 = Kmer('ACTGA')
+    n2 = Kmer('TCGAA')
+    kmer = Kmer('ATTTC')
 
     # Discards any UnitigMapping that's not a node (i.e. a full unitig mapping)
-    assert set(g.nbunch_iter([u1, u2, kmer1])) == {u1, u2}
-    assert set(g.nbunch_iter([u1, u2, 20])) == {u1, u2}
+    assert set(g.nbunch_iter(["ACTGA", n2, kmer])) == {
+        Kmer("ACTGA"), Kmer("TCGAA")}
+    assert set(g.nbunch_iter([n1, n2, 20])) == {n1, n2}
 
     # neighbors(), successors() and predecessors() all should return an iterator
-    assert next(g.neighbors(u1))
-    assert next(g.successors(u1))
+    assert next(g.neighbors(n1))
+    assert next(g.successors(n1))
 
-    assert next(g.predecessors(u2))
+    assert next(g.predecessors(n2))
 
 
 def test_in_out_edges(mccortex):
@@ -184,14 +173,14 @@ def test_in_out_edges(mccortex):
 
     assert ("ACTGA", "TCGAT") in g.edges
 
-    u1 = g.find("ACTGA").get_full_mapping()
-    u2 = g.find("TCGAT").get_full_mapping()
+    n1 = Kmer("ACTGA")
+    n2 = Kmer("TCGAT")
 
-    assert (u1, u2) in g.edges
+    assert (n1, n2) in g.edges
 
-    u3 = g.find("ATCGA").get_full_mapping()
+    n3 = Kmer("ATCGA")
 
-    assert (u1, u3) not in g.edges
+    assert (n1, n3) not in g.edges
 
-    assert g.edges[u1, u2]['orientation'] == (u1.data['strand'], u2.data['strand'])
-    assert g.edges[u1, u2]['label'] == "T"
+    assert g.edges[n1, n2]['orientation'] == (g.nodes[n1]['strand'], g.nodes[n2]['strand'])
+    assert g.edges[n1, n2]['label'] == "T"

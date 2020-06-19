@@ -1,58 +1,45 @@
-#include <pybind11/pybind11.h>
-#include <pybind11/operators.h>
-
-#include <Kmer.hpp>
-
-namespace py = pybind11;
-
 #ifndef PYFROST_KMER_H
 #define PYFROST_KMER_H
 
+#include <pybind11/pybind11.h>
+#include <pybind11/operators.h>
+
+#include "UnitigDataDict.h"
+
+namespace py = pybind11;
+
+#include <Kmer.hpp>
+
 namespace pyfrost {
 
-void define_Kmer(py::module &m) {
-    py::class_<Kmer>(m, "Kmer")
-        // Constructors
-        .def(py::init<>())
-        .def(py::init<Kmer const&>())
-        .def(py::init<char const*>())
+/**
+ * Convert any object to a K-mer. By default simply outputs an empty k-mer, but specializations exist to convert to
+ * more meaningful values.
+ *
+ * This function is for example used by NodeIterator to convert any value in a given Python list to a potential node
+ * k-mer.
+ */
+template <typename T>
+Kmer to_kmer(T) {
+    Kmer kmer;
+    kmer.set_empty();
 
-        // Operator overloading
-        .def(py::self == py::self)
-        .def(py::self != py::self)
-        .def(py::self < py::self)
-        .def("__getitem__", [] (const Kmer& self, int index) {
-                if(index >= Kmer::k || index < 0) {
-                    throw std::out_of_range("Index is out of range");
-                }
-
-                return self.getChar(index);
-            }, py::is_operator(), "Get base at position")
-
-        // DNA sequence operations
-        .def("forward_base", &Kmer::forwardBase, "Shift the k-mer to the left with one base and append the given base.")
-        .def("backward_base", &Kmer::forwardBase, "Shift the k-mer to the right with one base and prepend the given base.")
-        .def("twin", &Kmer::twin, "Get the reverse complement of this k-mer.")
-        .def("rep", &Kmer::rep, "Get the canonical k-mer.")
-
-        // Other functions
-        .def("__str__", [] (const Kmer& self) { return self.toString(); })
-        .def("__repr__", [] (const Kmer& self) { return "<Kmer '" + self.toString() + "'>"; })
-        .def("__bool__", [] (const Kmer& self) {
-            Kmer empty;
-            empty.set_empty();
-
-            return self != empty;
-        })
-        .def("__hash__", [] (const Kmer& self) { return self.hash(); })
-        .def("hash", &Kmer::hash, "Get the hash value for this k-mer", py::arg("seed") = 0);
-
-
-    // two bits are reserved for k-mer metadata
-    m.attr("max_k") = MAX_KMER_SIZE - 1;
-
-    m.def("set_k", &Kmer::set_k, "Set the k-mer size for all `Kmer` objects. Only use at the beginning of the program!");
+    return kmer;
 }
+
+Kmer to_kmer(PyfrostColoredUMap const& obj);
+
+Kmer to_kmer(py::handle const& obj);
+
+Kmer to_kmer(py::object const& obj);
+
+Kmer to_kmer(Kmer const& kmer);
+
+Kmer to_kmer(char const* kmer);
+
+bool is_kmer_empty(Kmer const& kmer);
+
+void define_Kmer(py::module &m);
 
 }
 

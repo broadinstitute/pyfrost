@@ -55,6 +55,7 @@ private:
 };
 
 using PyfrostColoredUMap = UnitigColorMap<UnitigDataDict>;
+using const_PyfrostColoredUMap = const_UnitigColorMap<UnitigDataDict>;
 
 }
 

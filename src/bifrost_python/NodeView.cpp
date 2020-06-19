@@ -6,15 +6,12 @@ void define_NodeView(py::module& m) {
     auto py_NodeDataView = py::class_<NodeDataView>(m, "NodeDataView")
         .def("__getitem__", py::overload_cast<char const*>(&NodeDataView::get), py::is_operator())
         .def("__getitem__", py::overload_cast<Kmer const&>(&NodeDataView::get), py::is_operator())
-        .def("__getitem__", py::overload_cast<PyfrostColoredUMap const&>(&NodeDataView::get), py::is_operator())
 
         .def("__contains__", py::overload_cast<char const*>(&NodeDataView::contains), py::is_operator())
         .def("__contains__", py::overload_cast<Kmer const&>(&NodeDataView::contains), py::is_operator())
-        .def("__contains__", py::overload_cast<PyfrostColoredUMap const&>(&NodeDataView::contains), py::is_operator())
 
         .def("__len__", &NodeDataView::numNodes, py::is_operator())
 
-            // This iterator already should have copies, so no need for return_value_policy::copy
         .def("__iter__", [] (NodeDataView const& self) {
             return py::make_iterator(self.begin(), self.end());
         }, py::keep_alive<0, 1>())
@@ -32,17 +29,15 @@ void define_NodeView(py::module& m) {
         // Access nodes with [] operator overloading
         .def("__getitem__", py::overload_cast<char const*>(&NodeView::findNode), py::is_operator())
         .def("__getitem__", py::overload_cast<Kmer const&>(&NodeView::findNode), py::is_operator())
-        .def("__getitem__", py::overload_cast<PyfrostColoredUMap const&>(&NodeView::findNode), py::is_operator())
 
         .def("__contains__", py::overload_cast<char const*>(&NodeView::contains), py::is_operator())
         .def("__contains__", py::overload_cast<Kmer const&>(&NodeView::contains), py::is_operator())
-        .def("__contains__", py::overload_cast<PyfrostColoredUMap const&>(&NodeView::contains), py::is_operator())
 
         .def("__len__", &NodeView::numNodes, py::is_operator())
 
             // Call without parameters just returns the node iterator
         .def("__call__", [] (NodeView const& self) {
-            return py::make_iterator<py::return_value_policy::copy>(self.begin(), self.end());
+            return py::make_iterator(self.begin(), self.end());
         })
 
             // With data arguments we return a NodeDataView
@@ -59,7 +54,7 @@ void define_NodeView(py::module& m) {
 
             // Iterate over all nodes
         .def("__iter__", [](NodeView const& self) {
-            return py::make_iterator<py::return_value_policy::copy>(self.begin(), self.end());
+            return py::make_iterator(self.begin(), self.end());
         }, py::keep_alive<0, 1>())
 
             // Required for Set mixin (see collections.abc Python documentation)

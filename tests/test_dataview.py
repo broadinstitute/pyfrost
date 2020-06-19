@@ -1,7 +1,7 @@
 from collections.abc import Set, Mapping
 import pytest  # noqa
 
-from pyfrost import Strand
+from pyfrost import Strand, Kmer
 from pyfrost.views import NodeView, NodeDataView
 
 
@@ -14,8 +14,8 @@ def test_node_dataview(mccortex):
     assert isinstance(g.nodes(data=True), NodeDataView)
 
     # Test call without arguments, should return the same as without call
-    node_set = set(n for n in g.nodes)
-    node_set2 = set(n for n in g.nodes())
+    node_set = set(g.nodes)
+    node_set2 = set(g.nodes())
 
     assert node_set == node_set2
 
@@ -29,7 +29,7 @@ def test_node_dataview(mccortex):
     assert node_set == node_set3
 
     # Check that the Set mixin works
-    n = g.find('ACTGA', True).get_full_mapping()
+    n = Kmer('ACTGA')
     assert (g.nodes & {n}) == {n}
 
     # Now with specific key in the data dict
@@ -53,64 +53,56 @@ def test_node_dataview(mccortex):
 def test_unitig_data(mccortex):
     g = mccortex
 
-    kmer1 = g.find('ACTGA', True)
-    kmer2 = g.find('TCGAA', True)
+    kmer1 = g.nodes['ACTGA']
+    kmer2 = g.nodes['TCGAA']
+
+    # These k-mers are in the middle of an unitig
     kmer3 = g.find('TGATT')
     kmer4 = g.find('GAAAT')
 
-    assert kmer1.data['is_full_mapping'] is False
-    assert isinstance(kmer1.data['pos'], int)
+    assert kmer1['is_full_mapping'] is True
 
-    assert isinstance(kmer1.data['length'], int)
-    assert isinstance(kmer1.data['unitig_length'], int)
-    assert kmer1.data['unitig_length'] == 7
+    assert isinstance(kmer1['length'], int)
+    assert kmer1['unitig_length'] == 7
+    assert str(kmer1) == "ACTGATTTCGA"
 
-    assert kmer1.data['pos'] == 0
-    assert kmer1.data['strand'] == Strand.REVERSE
+    assert kmer1['pos'] == 0
+    assert kmer1['strand'] == Strand.REVERSE
 
-    assert kmer2.data['pos'] == 0
-    assert kmer2.data['strand'] == Strand.FORWARD
+    assert kmer2['pos'] == 0
+    assert kmer2['strand'] == Strand.FORWARD
 
-    assert kmer3.data['pos'] == 2
-    assert kmer3.data['strand'] == Strand.REVERSE
+    print(str(kmer3), kmer3['pos'], kmer3['strand'], kmer3['unitig_length'], kmer3['length'])
+    assert kmer3['pos'] == 2
+    assert kmer3['strand'] == Strand.REVERSE
 
-    assert kmer4.data['pos'] == 2
-    assert kmer4.data['strand'] == Strand.FORWARD
-
-    n1 = kmer1.get_full_mapping()
-    assert n1.data['is_full_mapping'] is True
-    assert g.nodes[n1]['is_full_mapping'] is True
-    assert kmer1.data['length'] != n1.data['length']
-    assert kmer1.data['unitig_length'] == n1.data['unitig_length']
-    assert n1.data['strand'] == Strand.REVERSE
+    assert kmer4['pos'] == 2
+    assert kmer4['strand'] == Strand.FORWARD
 
     # Test user attributes
-    n1.data['test'] = 1
-    assert n1.data['test'] == 1
-
-    # kmer1 points to the same unitig so should have the same value
-    assert kmer1.data['test'] == 1
+    kmer1['test'] = 1
+    assert kmer1['test'] == 1
 
     with pytest.raises(KeyError):
-        _ = kmer1.data['dgfdghsdfkgh']
+        _ = kmer1['dgfdghsdfkgh']
 
     # Harcoded keys should be read only
     with pytest.raises(KeyError):
-        kmer1.data['is_full_mapping'] = True
+        kmer1['is_full_mapping'] = True
 
 
 def test_unitig_colors(mccortex):
     g = mccortex
 
     kmer1 = g.find('TCGAA')
-    colors = list(iter(kmer1.data['colors']))
+    colors = list(iter(kmer1['colors']))
 
     assert colors == [(0, 0)]
 
-    n1 = kmer1.get_full_mapping()
-    colors = list(iter(n1.data['colors']))
+    n1 = g.nodes["TCGAA"]
+    colors = list(iter(n1['colors']))
 
-    assert colors == [(i, 0) for i in range(n1.data['length'])]
+    assert colors == [(i, 0) for i in range(n1['length'])]
 
 
 def test_edge_dataview(mccortex):
@@ -126,12 +118,12 @@ def test_edge_dataview(mccortex):
         assert 'orientation' in data
 
         orientation = data['orientation']
-        assert orientation[0] == s.data['strand']
-        assert orientation[1] == t.data['strand']
+        assert orientation[0] == g.nodes[s]['strand']
+        assert orientation[1] == g.nodes[t]['strand']
 
     for s, t, orientation in g.edges(data="orientation"):
-        assert orientation[0] == s.data['strand']
-        assert orientation[1] == t.data['strand']
+        assert orientation[0] == g.nodes[s]['strand']
+        assert orientation[1] == g.nodes[t]['strand']
 
     for s, t, non_existent in g.edges(data="dghfkjgjk"):
         assert non_existent is None
@@ -143,67 +135,65 @@ def test_edge_dataview(mccortex):
 def test_edge_dataview_nbunch(mccortex):
     g = mccortex
 
-    u1 = g.find('ACTGA').get_full_mapping()
-    u2 = g.find('TCGAT').get_full_mapping()
+    kmer1 = Kmer('ACTGA')
+    kmer2 = Kmer('TCGAT')
 
-    edges = set(g.edges([u1, u2]))
+    edges = set(g.edges(['ACTGA', 'TCGAT']))
 
-    u3 = g.find('TCGAA').get_full_mapping()
-    u4 = g.find('CGATG').get_full_mapping()
+    kmer3 = Kmer('TCGAA')
+    kmer4 = Kmer('CGATG')
 
     assert edges == {
-        (u1, u2),
-        (u1, u3),
-        (u2, u4)
+        (kmer1, kmer2),
+        (kmer1, kmer3),
+        (kmer2, kmer4)
     }
 
-    assert len(g.edges([u1, u2])) == 3
-    assert len(g.edges([u1, u2, None])) == 3
+    assert len(g.edges([kmer1, kmer2])) == 3
+    assert len(g.edges([kmer1, kmer2, None, ()])) == 3
 
-    edges = [e for e in sorted(g.edges([u1, u2], data=True),
-                               key=lambda e: (e[0].head, e[1].head))]
+    edges = [e for e in sorted(g.edges([kmer1, kmer2], data=True))]
 
     for n1, n2, d in edges:
         assert isinstance(d, dict)
 
     edges_ = [(n1, n2) for n1, n2, _ in edges]
     assert edges_ == [
-        (u1, u3),
-        (u1, u2),
-        (u2, u4)
+        (kmer1, kmer3),
+        (kmer1, kmer2),
+        (kmer2, kmer4)
     ]
 
-    edges = set(g.edges([u1, u2], data="label"))
+    edges = set(g.edges([kmer1, kmer2], data="label"))
     assert edges == {
-        (u1, u2, "T"),
-        (u1, u3, "A"),
-        (u2, u4, "G")
+        (kmer1, kmer2, "T"),
+        (kmer1, kmer3, "A"),
+        (kmer2, kmer4, "G")
     }
 
-    edges = set(g.edges([u1, u2], data="non_existent", default="test"))
+    edges = set(g.edges([kmer1, kmer2], data="non_existent", default="test"))
     assert edges == {
-        (u1, u2, "test"),
-        (u1, u3, "test"),
-        (u2, u4, "test")
+        (kmer1, kmer2, "test"),
+        (kmer1, kmer3, "test"),
+        (kmer2, kmer4, "test")
     }
 
-    assert (u1, u2) in g.edges(data=True)
-    assert (u1, u2, g.edges[u1, u2]) in g.edges(data=True)
-    assert (u1, u2, "T") in g.edges(data="label")
+    assert (kmer1, kmer2) in g.edges(data=True)
+    assert (kmer1, kmer2, g.edges[kmer1, kmer2]) in g.edges(data=True)
+    assert (kmer1, kmer2, "T") in g.edges(data="label")
 
-    assert (u1, u4) not in g.edges(data=True)
-    assert (u1, u2, "G") not in g.edges(data="label")
+    assert (kmer1, kmer4) not in g.edges(data=True)
+    assert (kmer1, kmer2, "G") not in g.edges(data="label")
 
-    assert len(g.in_edges([u3, u2])) == 4
+    assert len(g.in_edges([kmer3, kmer2])) == 4
 
-    edges = set(g.in_edges([u3, u2]))
-    u5 = g.find('ATCGA').get_full_mapping()
+    edges = set(g.in_edges([kmer3, kmer2]))
+    kmer5 = Kmer('ATCGA')
 
     assert edges == {
-        (u1, u3),
-        (u5, u3),
-        (u1, u2),
-        (u5, u2),
+        (kmer1, kmer3),
+        (kmer5, kmer3),
+        (kmer1, kmer2),
+        (kmer5, kmer2),
     }
-
 

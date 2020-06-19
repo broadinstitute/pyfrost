@@ -5,7 +5,6 @@
 #include "Pyfrost.h"
 #include "NodeView.h"
 #include "EdgeView.h"
-#include "NodeBunchIter.h"
 #include "AdjacencyProxy.h"
 
 #ifndef PYFROST_BIFROSTGRAPH_H
@@ -71,36 +70,42 @@ public:
         return pred;
     }
 
-    inline AdjacencyViewBase* getSuccessors(PyfrostColoredUMap const& unitig) {
-        return succ.getView(unitig);
+    inline SuccessorView getSuccessors(Kmer const& kmer) {
+        return SuccessorView(dbg, kmer);
     }
 
-    inline AdjacencyViewBase* getSuccessors(Kmer const& kmer) {
-        return succ.getView(kmer);
+    inline SuccessorView getSuccessors(char const* kmer) {
+        return getSuccessors(Kmer(kmer));
     }
 
-    inline AdjacencyViewBase* getSuccessors(char const* kmer) {
-        return succ.getView(kmer);
+    inline PredecessorView getPredecessors(Kmer const& kmer) {
+        return PredecessorView(dbg, kmer);
     }
 
-    inline AdjacencyViewBase* getPredecessors(PyfrostColoredUMap const& unitig) {
-        return pred.getView(unitig);
+    inline PredecessorView getPredecessors(char const* kmer) {
+        return getPredecessors(Kmer(kmer));
     }
 
-    inline AdjacencyViewBase* getPredecessors(Kmer const& kmer) {
-        return pred.getView(kmer);
+    inline UnitigDataProxy findUnitig(Kmer const& kmer, bool extremities_only=false) {
+        auto unitig = dbg.find(kmer, extremities_only);
+
+        if(unitig.isEmpty) {
+            throw py::key_error("K-mer not found in the graph.");
+        }
+
+        return UnitigDataProxy(unitig);
     }
 
-    inline AdjacencyViewBase* getPredecessors(char const* kmer) {
-        return pred.getView(kmer);
+    inline UnitigDataProxy findUnitig(char const* kmer, bool extremities_only=false) {
+        return findUnitig(Kmer(kmer), extremities_only);
     }
 
-    inline PyfrostColoredUMap findUnitig(Kmer const& kmer, bool extremities_only=false) {
-        return dbg.find(kmer, extremities_only);
+    inline bool contains(Kmer const& kmer) {
+        return !dbg.find(kmer, true).isEmpty;
     }
 
-    inline PyfrostColoredUMap findUnitig(char const* kmer, bool extremities_only=false) {
-        return dbg.find(Kmer(kmer), extremities_only);
+    inline bool contains(char const* kmer) {
+        return contains(Kmer(kmer));
     }
 
     inline size_t numNodes() const {
@@ -117,6 +122,10 @@ public:
 
     bool operator!=(BifrostDiGraph const& o) const {
         return !operator==(o);
+    }
+
+    inline PyfrostCCDBG& getGraph() {
+        return dbg;
     }
 
 private:

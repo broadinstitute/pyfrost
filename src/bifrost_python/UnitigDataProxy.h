@@ -13,6 +13,10 @@ enum class UnitigMetaKeys : uint8_t {
     LENGTH,
     POS,
     STRAND,
+    HEAD,
+    TAIL,
+    MAPPED_SEQUENCE,
+    UNITIG_SEQUENCE,
     UNITIG_LENGTH,
     IS_FULL_MAPPING,
     COLORS,
@@ -25,7 +29,11 @@ class UnitigDataProxy {
 public:
     friend class UnitigDataKeyIterator;
 
-    explicit UnitigDataProxy(PyfrostColoredUMap const& unitig) : unitig(unitig) { }
+    explicit UnitigDataProxy(PyfrostColoredUMap const& unitig) : unitig(unitig) {
+        if(unitig.isEmpty) {
+            throw std::runtime_error("Trying to construct UnitigDataProxy for non-existent unitig.");
+        }
+    }
     UnitigDataProxy(UnitigDataProxy const& o) = default;
     UnitigDataProxy(UnitigDataProxy&& o) = default;
 
@@ -37,7 +45,19 @@ public:
     void delData(py::str const& key);
 
     size_t size() const;
-    size_t mappedStringLength() const;
+
+    std::string mappedSequence() const;
+    size_t mappedSequenceLength() const;
+
+    std::string unitigSequence() const;
+    size_t unitigLength() const;
+
+    Kmer unitigHead() const;
+    Kmer unitigTail() const;
+
+    inline PyfrostColoredUMap mappingToFullUnitig() const {
+        return unitig.mappingToFullUnitig();
+    }
 
     UnitigDataKeyIterator begin() const;
     UnitigDataKeyIterator end() const;
