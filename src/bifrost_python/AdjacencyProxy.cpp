@@ -16,12 +16,14 @@ void define_AdjacencyProxy(py::module& m) {
         .def("__contains__", py::overload_cast<char const*>(&AdjacencyViewBase::contains), py::is_operator())
         .def("__contains__", py::overload_cast<Kmer const&>(&AdjacencyViewBase::contains), py::is_operator())
 
-        .def("__getitem__", [] (AdjacencyViewBase const& self) {
+        .def("__getitem__", [] (AdjacencyViewBase const& self, Kmer) {
             return py::dict(); // TODO
         });
 
-    auto Iterable = py::module::import("collections.abc").attr("Iterable");
-    py_AdjacencyViewBase.attr("__bases__") = py::make_tuple(Iterable).attr("__add__")(py_AdjacencyViewBase.attr("__bases__"));
+    auto Mapping = py::module::import("collections.abc").attr("Mapping");
+    auto Set = py::module::import("collections.abc").attr("Set");
+    py_AdjacencyViewBase.attr("__bases__") = py::make_tuple(Mapping, Set).attr("__add__")(
+        py_AdjacencyViewBase.attr("__bases__"));
 
     py::class_<SuccessorView, AdjacencyViewBase>(m, "SuccessorView")
         .def("__iter__", [] (SuccessorView const& self) {
@@ -33,7 +35,7 @@ void define_AdjacencyProxy(py::module& m) {
             return py::make_iterator(self.begin(), self.end());
         }, py::keep_alive<0, 1>());
 
-    py::class_<AdjacencyProxy>(m, "AdjacencyProxy")
+    auto py_AdjacencyProxy = py::class_<AdjacencyProxy>(m, "AdjacencyProxy")
         .def("__len__", &AdjacencyProxy::numNodes, py::is_operator())
 
         .def("__contains__", py::overload_cast<Kmer const&>(&AdjacencyProxy::contains))
@@ -45,6 +47,9 @@ void define_AdjacencyProxy(py::module& m) {
         .def("__iter__", [] (AdjacencyProxy const& self) {
             return py::make_iterator<py::return_value_policy::copy>(self.begin(), self.end());
         }, py::keep_alive<0, 1>());
+
+    py_AdjacencyProxy.attr("__bases__") = py::make_tuple(Mapping, Set).attr("__add__")(
+        py_AdjacencyProxy.attr("__bases__"));
 }
 
 }

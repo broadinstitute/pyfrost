@@ -1,13 +1,12 @@
-
-#include "Pyfrost.h"
-
 #ifndef PYFROST_ADJACENCYVIEW_H
 #define PYFROST_ADJACENCYVIEW_H
 
 #include <pybind11/pybind11.h>
 #include <NeighborIterator.hpp>
 
+#include "Pyfrost.h"
 #include "NodeIterator.h"
+#include "EdgeView.h"
 
 namespace py = pybind11;
 
@@ -69,6 +68,11 @@ public:
         return num;
     }
 
+    virtual py::dict getEdgeDict(Kmer const& neighbor) const = 0;
+
+    py::dict getEdgeDict(char const* neighbor) const {
+        return getEdgeDict(Kmer(neighbor));
+    }
 };
 
 class SuccessorView : public AdjacencyViewBase {
@@ -82,6 +86,10 @@ public:
     inline iterator_type end() const override {
         return {&dbg, node.getSuccessors().end()};
     }
+
+    py::dict getEdgeDict(Kmer const& neighbor) const override {
+        return makeEdgeDataDict(dbg, node.getMappedHead(), neighbor);
+    }
 };
 
 class PredecessorView : public AdjacencyViewBase {
@@ -94,6 +102,10 @@ public:
 
     inline iterator_type end() const override {
         return {&dbg, node.getPredecessors().end()};
+    }
+
+    py::dict getEdgeDict(Kmer const& neighbor) const override {
+        return makeEdgeDataDict(dbg, neighbor, node.getMappedHead());
     }
 };
 
