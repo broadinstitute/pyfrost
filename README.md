@@ -64,14 +64,14 @@ g = pyfrost.load('graph.gfa', 'graph.bfg_colors')
 
 Access some graph metadata:
 
-```python-repl
+```pycon
 >>> g.graph
 {'k': 31, 'color_names': ['data/ref1.fa', 'data.ref2.fa']}
 ```
 
 You can set custom metadata too:
 
-```python-repl
+```pycon
 >>> g.graph['custom_attr'] = "test"
 ```
 
@@ -80,7 +80,7 @@ You can set custom metadata too:
 Iterate over all unitigs (nodes) in the graph. Nodes are keyed by the first
 k-mer of the unitig.
 
-```python-repl
+```pycon
 >>> list(g.nodes)
 [<Kmer 'TCGAA'>,
  <Kmer 'CCACG'>,
@@ -95,7 +95,7 @@ k-mer of the unitig.
 
 Access unitig sequence and node metadata
 
-```python-repl
+```pycon
 >>> str(g.nodes["TCGAA"])
 TCGAAATCAGT
 
@@ -131,7 +131,7 @@ Mapped sequence and length will be discussed later.
 
 Iterate over nodes and its neighbors:
 
-```python-repl
+```pycon
 >>> for n, neighbors in g.adj.items():
    ...:     print("Current node:", str(g.nodes[n]))
    ...:     for nbr in neighbors:
@@ -154,7 +154,7 @@ Current node: ATCGA
 
 Find a specific k-mer (not necessarily the head of a unitig):
 
-```python-repl
+```pycon
 >>> mapping = g.find('AAATC')
 >>> for k, v in mapping.items():
     ...:     print(k, "-", v)
