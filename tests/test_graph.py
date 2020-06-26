@@ -150,7 +150,7 @@ def test_iteration(mccortex):
     n2 = Kmer('TCGAA')
     kmer = Kmer('ATTTC')
 
-    # Discards any UnitigMapping that's not a node (i.e. a full unitig mapping)
+    # Ignores any value in the list that's not a node
     assert set(g.nbunch_iter(["ACTGA", n2, kmer])) == {
         Kmer("ACTGA"), Kmer("TCGAA")}
     assert set(g.nbunch_iter([n1, n2, 20])) == {n1, n2}

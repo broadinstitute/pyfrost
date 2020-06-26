@@ -91,18 +91,26 @@ def test_unitig_data(mccortex):
         kmer1['is_full_mapping'] = True
 
 
-def test_unitig_colors(mccortex):
-    g = mccortex
-
-    kmer1 = g.find('TCGAA')
-    colors = list(iter(kmer1['colors']))
-
-    assert colors == [(0, 0)]
+def test_unitig_colors(mccortex2):
+    g = mccortex2
 
     n1 = g.nodes["TCGAA"]
-    colors = list(iter(n1['colors']))
+    colors = set(n1['colors'])
 
-    assert colors == [(i, 0) for i in range(n1['length'])]
+    assert colors == {0, 1}
+
+    # Test Set mixin
+    assert g.nodes['TCGAA']['colors'] & {0} == {0}
+
+    assert set(n1['colors'][0]) == {0, 1}
+    assert set(n1['colors'][-1]) == {0, 1}
+
+    with pytest.raises(KeyError):
+        _ = n1['colors'][43876]
+
+    # Other node specific to one color
+    kmer = g.find('TGGTG')
+    assert set(kmer['colors']) == {1}
 
 
 def test_edge_dataview(mccortex):
