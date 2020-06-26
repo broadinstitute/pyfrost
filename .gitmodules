@@ -7,3 +7,6 @@
 [submodule "vendor/pybind11"]
 	path = vendor/pybind11
 	url = https://github.com/pybind/pybind11
+[submodule "vendor/range-v3"]
+	path = vendor/range-v3
+	url = https://github.com/ericniebler/range-v3
