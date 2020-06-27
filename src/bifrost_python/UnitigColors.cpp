@@ -52,7 +52,7 @@ void define_UnitigColors(py::module &m) {
         .def("__len__", &UnitigColorsProxy::size)
         .def("__iter__", [](UnitigColorsProxy const &self) {
             return py::make_iterator(self.begin(), self.end());
-        })
+        }, py::keep_alive<0, 1>())
 
         .def_static("_from_iterable", [] (py::iterable const& iterable) {
             return py::set(iterable);

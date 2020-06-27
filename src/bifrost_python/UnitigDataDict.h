@@ -1,11 +1,10 @@
+#ifndef PYFROST_UNITIGDATADICT_H
+#define PYFROST_UNITIGDATADICT_H
+
 #include <pybind11/pybind11.h>
 #include <ColoredCDBG.hpp>
 
 namespace py = pybind11;
-
-
-#ifndef PYFROST_UNITIGDATADICT_H
-#define PYFROST_UNITIGDATADICT_H
 
 namespace pyfrost {
 

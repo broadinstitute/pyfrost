@@ -4,6 +4,7 @@
 #include "Pyfrost.h"
 #include "Kmer.h"
 #include "UnitigDataDict.h"
+#include "UnitigCoverage.h"
 #include "UnitigDataProxy.h"
 #include "UnitigMapping.h"
 #include "UnitigColors.h"
@@ -35,6 +36,7 @@ PYBIND11_MODULE(bifrost_python, m) {
 
     pyfrost::define_Kmer(m);
     pyfrost::define_UnitigColors(m);
+    pyfrost::define_UnitigCoverageProxy(m);
     pyfrost::define_UnitigDataProxy(m);
     pyfrost::define_UnitigMapping(m);
     pyfrost::define_NodeView(m);

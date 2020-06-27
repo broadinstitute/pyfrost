@@ -1,9 +1,9 @@
+#ifndef PYFROST_UNITIGDATAPROXY_H
+#define PYFROST_UNITIGDATAPROXY_H
+
 #include <unordered_map>
 
 #include "Pyfrost.h"
-
-#ifndef PYFROST_UNITIGDATAPROXY_H
-#define PYFROST_UNITIGDATAPROXY_H
 
 namespace pyfrost {
 
@@ -20,6 +20,7 @@ enum class UnitigMetaKeys : uint8_t {
     UNITIG_LENGTH,
     IS_FULL_MAPPING,
     COLORS,
+    COVERAGE,
     NONE
 };
 

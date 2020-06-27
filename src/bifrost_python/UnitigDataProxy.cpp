@@ -1,9 +1,11 @@
 #include "UnitigDataProxy.h"
+#include "UnitigCoverage.h"
 #include "UnitigColors.h"
 
 namespace pyfrost {
 
 void define_UnitigDataProxy(py::module& m) {
+
     auto handle = py::class_<UnitigDataProxy>(m, "UnitigDataProxy")
         // Dict like interface
         .def("__getitem__", &UnitigDataProxy::getData, py::is_operator())
@@ -39,7 +41,8 @@ const std::unordered_map<std::string, UnitigMetaKeys> UnitigDataProxy::hardcoded
     {"unitig_sequence", UnitigMetaKeys::UNITIG_SEQUENCE},
     {"unitig_length",   UnitigMetaKeys::UNITIG_LENGTH},
     {"is_full_mapping", UnitigMetaKeys::IS_FULL_MAPPING},
-    {"colors",          UnitigMetaKeys::COLORS}
+    {"colors",          UnitigMetaKeys::COLORS},
+    {"coverage",        UnitigMetaKeys::COVERAGE},
 };
 
 bool UnitigDataProxy::contains(const std::string &key) const {
@@ -83,6 +86,9 @@ py::object UnitigDataProxy::getData(std::string const& key) const {
 
         case UnitigMetaKeys::COLORS:
             return py::cast(UnitigColorsProxy(unitig));
+
+        case UnitigMetaKeys::COVERAGE:
+            return py::cast(UnitigCoverageProxy(unitig));
 
         default:
         {

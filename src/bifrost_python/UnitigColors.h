@@ -41,9 +41,7 @@ public:
     UnitigColorsProxy(UnitigColorsProxy const& o) = default;
     UnitigColorsProxy(UnitigColorsProxy&& o) = default;
 
-    UnitigColorsProxy& operator=(UnitigColorsProxy const& o) = default;
-
-    UnitigColorsProxy getColorsAtPos(int pos) {
+    UnitigColorsProxy getColorsAtPos(long pos) {
         size_t new_pos = pos < 0 ? unitig.size - unitig.getGraph()->getK() + 1 + pos : static_cast<size_t>(pos);
         auto new_unitig = unitig.getKmerMapping(new_pos);
 
