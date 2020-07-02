@@ -110,7 +110,7 @@ void define_BifrostDiGraph(py::module& m) {
         .def("find", py::overload_cast<char const*, bool>(&BifrostDiGraph::findUnitig), py::arg("kmer"),
              py::arg("extremities_only") = false)
 
-        // neigbors, successors, and predececessors all should return an iterator
+        // adjacency, neigbors, successors, and predececessors all should return an iterator
         .def("neighbors", [] (BifrostDiGraph& self, Kmer const& node) {
             auto view = self.getSuccessors(node);
             return py::make_iterator(view.begin(), view.end());
@@ -184,8 +184,8 @@ void define_BifrostDiGraph(py::module& m) {
         .def_property_readonly("graph", &BifrostDiGraph::getGraphAttributes,
                                "Get the graph attributes dictionary.")
 
-        .def("is_directed", [] () { return true; })
-        .def("is_multigraph", [] () { return false; })
+        .def("is_directed", [] (BifrostDiGraph const& self) { return true; })
+        .def("is_multigraph", [] (BifrostDiGraph const& self) { return false; })
         ;
 
     m.def("load", &load, py::return_value_policy::move,
