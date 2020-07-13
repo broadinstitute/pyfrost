@@ -7,3 +7,9 @@
 [submodule "vendor/pybind11"]
 	path = vendor/pybind11
 	url = https://github.com/pybind/pybind11
+[submodule "vendor/robin-hood-hashing"]
+	path = vendor/robin-hood-hashing
+	url = https://github.com/martinus/robin-hood-hashing
+[submodule "vendor/cereal"]
+	path = vendor/cereal
+	url = https://github.com/USCiLab/cereal

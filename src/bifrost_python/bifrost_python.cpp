@@ -3,8 +3,8 @@
 
 #include "Pyfrost.h"
 #include "Kmer.h"
+#include "KmerCounter.h"
 #include "UnitigDataDict.h"
-#include "UnitigCoverage.h"
 #include "UnitigDataProxy.h"
 #include "UnitigMapping.h"
 #include "UnitigColors.h"
@@ -20,10 +20,7 @@ std::ostream& operator<<(std::ostream& o, pyfrost::PyfrostColoredUMap const& u) 
     return o;
 }
 
-
 PYBIND11_MODULE(bifrost_python, m) {
-    py::bind_vector<std::vector<std::string>>(m, "StringVector");
-
     m.doc() = R"doc(
         Python bindings for Bifrost
         ===========================
@@ -34,9 +31,12 @@ PYBIND11_MODULE(bifrost_python, m) {
 
     m.attr("default_k") = DEFAULT_K;
 
+    py::bind_vector<std::vector<std::string>>(m, "StringVector");
+    py::implicitly_convertible<py::list, std::vector<std::string>>();
+
     pyfrost::define_Kmer(m);
+    pyfrost::define_KmerCounter(m);
     pyfrost::define_UnitigColors(m);
-    pyfrost::define_UnitigCoverageProxy(m);
     pyfrost::define_UnitigDataProxy(m);
     pyfrost::define_UnitigMapping(m);
     pyfrost::define_NodeView(m);

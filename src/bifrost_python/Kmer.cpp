@@ -87,16 +87,24 @@ void define_Kmer(py::module &m) {
         .def("twin", &Kmer::twin, "Get the reverse complement of this k-mer.")
         .def("rep", &Kmer::rep, "Get the canonical k-mer.")
 
-            // Other functions
-        .def("__str__", [] (const Kmer& self) { return self.toString(); })
-        .def("__repr__", [] (const Kmer& self) { return "<Kmer '" + self.toString() + "'>"; })
-        .def("__bool__", [] (const Kmer& self) {
+        .def("to_binary", [] (Kmer const& self) {
+            stringstream stream;
+            self.write(stream);
+
+            std::string kmer_binary = stream.str();
+            return py::bytes(kmer_binary);
+        })
+
+        // Other functions
+        .def("__str__", [] (Kmer const& self) { return self.toString(); })
+        .def("__repr__", [] (Kmer const& self) { return "<Kmer '" + self.toString() + "'>"; })
+        .def("__bool__", [] (Kmer const& self) {
             Kmer empty;
             empty.set_empty();
 
             return self != empty;
         })
-        .def("__hash__", [] (const Kmer& self) { return self.hash(); })
+        .def("__hash__", [] (Kmer const& self) { return self.hash(); })
         .def("hash", &Kmer::hash, "Get the hash value for this k-mer", py::arg("seed") = 0);
 
 

@@ -113,24 +113,6 @@ def test_unitig_colors(mccortex2):
     assert set(kmer['colors']) == {1}
 
 
-def test_unitig_coverage(mccortex2):
-    g = mccortex2
-
-    n1 = g.nodes['TCGAA']
-    for cov in n1['coverage']:
-        assert cov == 2
-
-    assert n1['coverage'][0] == 2
-    assert n1['coverage'][-1] == 2
-
-    assert len(n1['coverage']) == n1['unitig_length']
-    assert len(list(n1['coverage'])) == n1['unitig_length']
-
-    n2 = g.nodes[g.find('TGGTG')['head']]
-    assert n2['coverage'][0] == 1
-    assert all(c == 2 for c in n2['coverage'])
-
-
 def test_edge_dataview(mccortex):
     g = mccortex
 

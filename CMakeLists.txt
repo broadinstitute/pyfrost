@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12..3.16)
+cmake_minimum_required(VERSION 3.10..3.16)
 project(pyfrost VERSION 0.1
     DESCRIPTION "Python bindings to Bifrost with a NetworkX compatible API"
     LANGUAGES CXX)

@@ -20,7 +20,6 @@ enum class UnitigMetaKeys : uint8_t {
     UNITIG_LENGTH,
     IS_FULL_MAPPING,
     COLORS,
-    COVERAGE,
     NONE
 };
 

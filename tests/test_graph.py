@@ -39,7 +39,6 @@ def test_graph_attr(mccortex):
     g = mccortex
 
     assert g.graph['k'] == 5
-    assert isinstance(g.graph['color_names'], list)
 
     g.graph['test'] = 1
     assert g.graph['test'] == 1
