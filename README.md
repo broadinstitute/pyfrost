@@ -7,6 +7,12 @@ A Python library for creating and analyzing compacted colored de Bruijn Graphs p
 This library is still in an early development stage, and the API is still subject to change. Furthermore, not all
 functions from NetworkX are implemented yet.
 
+Requirements
+------------
+
+* Python >= 3.6
+* C++14 compatible compiler (GCC >5, Clang >3.4)
+
 Installation
 ------------
 
