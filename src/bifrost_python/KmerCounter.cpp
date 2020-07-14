@@ -1,4 +1,9 @@
 #include <thread>
+#include <cereal/cereal.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/string.hpp>
+
 #include "KmerCounter.h"
 
 using std::vector;
@@ -27,6 +32,22 @@ KmerCounter::KmerCounter(size_t _k, size_t _g, bool _canonical, size_t _num_thre
     k(_k), g(_g), canonical(_canonical), num_threads(_num_threads), read_block_size(_read_block_size),
     tables(1 << _table_bits), table_locks(1 << _table_bits),
     num_kmers(0), num_unique(0), finished_reading(false)
+{
+    setKmerGmer();
+}
+
+KmerCounter::KmerCounter(KmerCounter const& o) :
+    k(o.k), g(o.g), canonical(o.canonical), num_threads(o.num_threads), read_block_size(o.read_block_size),
+    tables(o.tables), table_locks(o.tables.size()), num_kmers(o.num_kmers.load()), num_unique(o.num_unique.load()),
+    finished_reading(o.finished_reading.load())
+{
+    setKmerGmer();
+}
+
+KmerCounter::KmerCounter(KmerCounter&& o) :
+    k(o.k), g(o.g), canonical(o.canonical), num_threads(o.num_threads), read_block_size(o.read_block_size),
+    tables(std::move(o.tables)), table_locks(o.tables.size()), num_kmers(o.num_kmers.load()),
+    num_unique(o.num_unique.load()), finished_reading(o.finished_reading.load())
 {
     setKmerGmer();
 }
@@ -110,7 +131,6 @@ KmerCounter& KmerCounter::countKmersFiles(std::vector<std::string> const& files)
             guard.unlock();
 
             sequences.clear();
-            nucleotides_read = 0;
             sequence_ready.notify_one();
 
         }
@@ -202,8 +222,25 @@ uint16_t KmerCounter::query(const Kmer &qry)
     return 0;
 }
 
+template<typename Archive>
+void KmerCounter::save(Archive& ar) const {
+    ar(k, g, canonical, tables, num_kmers.load(), num_unique.load());
+}
 
+template<typename Archive>
+void KmerCounter::load(Archive& ar) {
+    ar(k, g, canonical);
+    setKmerGmer();
 
+    size_t _num_kmers = 0;
+    size_t _num_unique = 0;
+    ar(tables, _num_kmers, _num_unique);
+
+    num_kmers = _num_kmers;
+    num_unique = _num_unique;
+
+    table_locks = vector<mutex>(tables.size());
+}
 
 
 void define_KmerCounter(py::module& m) {
@@ -216,9 +253,77 @@ void define_KmerCounter(py::module& m) {
         .def("query", &KmerCounter::query)
 
         .def_property_readonly("num_kmers", &KmerCounter::getNumKmers)
-        .def_property_readonly("num_unique", &KmerCounter::getUniqueKmers);
+        .def_property_readonly("num_unique", &KmerCounter::getUniqueKmers)
+
+        .def("save", [] (KmerCounter& self, string const& filepath) {
+            std::ofstream ofile(filepath);
+            cereal::BinaryOutputArchive archive(ofile);
+
+            archive(cereal::make_nvp("kmercounter", self));
+        })
+
+        .def_static("from_file", [] (string const& filepath) {
+            KmerCounter kmer_counter;
+
+            std::ifstream ifile(filepath);
+            cereal::BinaryInputArchive archive(ifile);
+
+            archive(kmer_counter);
+
+            return kmer_counter;
+        });
 }
 
 }
 
 
+//
+// Cereal support
+// --------------
+// Make sure we can serialize Kmer objects and the robin_hood unordered_map
+//
+
+template<typename Archive>
+std::string save_minimal(Archive& ar, Kmer const& kmer)
+{
+    stringstream bytes;
+    kmer.write(bytes);
+
+    return bytes.str();
+}
+
+template<typename Archive>
+void load_minimal(Archive& ar, Kmer& kmer, std::string const& value)
+{
+    istringstream stream(value);
+    kmer.set_empty();
+    kmer.read(stream);
+}
+
+template<typename Archive, typename K, typename V, typename C, typename A>
+void save(Archive& ar, robin_hood::unordered_map<K, V, C, A> const& map)
+{
+    ar(map.size());
+    for(auto const& e : map) {
+        ar(e.first, e.second);
+    }
+}
+
+template<typename Archive, typename K, typename V, typename C, typename A>
+void load(Archive& ar, robin_hood::unordered_map<K, V, C, A>& map)
+{
+    map.clear();
+
+    size_t num_entries;
+    ar(num_entries);
+    map.reserve(num_entries);
+
+    for(int i = 0; i < num_entries; ++i) {
+        K key;
+        V value;
+        ar(key);
+        ar(value);
+
+        map.emplace(std::move(key), std::move(value));
+    }
+}

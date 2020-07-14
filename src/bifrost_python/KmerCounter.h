@@ -30,8 +30,11 @@ namespace pyfrost {
 
 class KmerCounter {
 public:
-    KmerCounter(size_t k, size_t g=0, bool canonical=true, size_t num_threads=2, size_t table_bits=10,
+    KmerCounter(size_t k=31, size_t g=0, bool canonical=true, size_t num_threads=2, size_t table_bits=10,
         size_t read_block_size=(1 << 20));
+
+    KmerCounter(KmerCounter const& o);
+    KmerCounter(KmerCounter&& o);
 
     KmerCounter& countKmersFiles(std::vector<std::string> const& files);
     KmerCounter& countKmers(std::string const& str);
@@ -45,6 +48,12 @@ public:
     uint64_t getUniqueKmers() const {
         return num_unique.load();
     }
+
+    template<typename Archive>
+    void save(Archive& ar) const;
+
+    template<typename Archive>
+    void load(Archive& ar);
 
 private:
     void counterThread();
