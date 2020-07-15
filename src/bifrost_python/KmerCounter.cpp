@@ -13,17 +13,6 @@ using std::lock_guard;
 using std::unique_lock;
 using std::mutex;
 
-namespace std {
-
-template<>
-class hash<Kmer> {
-public:
-    size_t operator()(Kmer const& kmer) const {
-        return kmer.hash();
-    }
-};
-
-}
 
 namespace pyfrost {
 
@@ -204,7 +193,7 @@ void KmerCounter::counterThread()
     }
 }
 
-uint16_t KmerCounter::query(const Kmer &qry)
+uint16_t KmerCounter::query(const Kmer &qry) const
 {
     Kmer kmer = canonical ? qry.rep() : qry;
     string kmer_str = kmer.toString();
@@ -214,12 +203,17 @@ uint16_t KmerCounter::query(const Kmer &qry)
         uint64_t minimizer_hash = it_min.getHash();
         size_t table_ix = minimizer_hash % tables.size();
 
-        if(tables[table_ix].contains(kmer)) {
-            return tables[table_ix][kmer];
+        auto it = tables[table_ix].find(kmer);
+        if(it != tables[table_ix].end()) {
+            return it->second;
         }
     }
 
     return 0;
+}
+
+uint16_t KmerCounter::query(char const* qry) const {
+    return query(Kmer(qry));
 }
 
 template<typename Archive>
@@ -244,14 +238,29 @@ void KmerCounter::load(Archive& ar) {
 
 
 void define_KmerCounter(py::module& m) {
-    py::class_<KmerCounter>(m, "KmerCounter")
+    auto py_KmerCounter = py::class_<KmerCounter>(m, "KmerCounter")
         .def(py::init<size_t, size_t, bool, size_t, size_t, size_t>(),
             py::arg("k"), py::arg("g") = 0, py::arg("canonical") = true,
             py::arg("num_threads") = 2, py::arg("table_bits") = 10, py::arg("read_block_size") = (1 << 20))
         .def("count_kmers", &KmerCounter::countKmers)
         .def("count_kmers_files", &KmerCounter::countKmersFiles)
-        .def("query", &KmerCounter::query)
+        .def("query", py::overload_cast<Kmer const&>(&KmerCounter::query, py::const_))
+        .def("query", py::overload_cast<char const*>(&KmerCounter::query, py::const_))
 
+        .def("__getitem__", py::overload_cast<Kmer const&>(&KmerCounter::query, py::const_), py::is_operator())
+        .def("__getitem__", py::overload_cast<char const*>(&KmerCounter::query, py::const_), py::is_operator())
+
+        .def("__iter__", [] (KmerCounter& self) {
+            return py::make_key_iterator(self.begin(), self.end());
+        }, py::keep_alive<0, 1>())
+
+        .def("items", [] (KmerCounter& self) {
+            return py::make_iterator(self.begin(), self.end());
+        }, py::keep_alive<0, 1>())
+
+        .def("__len__", [] (KmerCounter const& self) {
+            return self.getUniqueKmers();
+        })
         .def_property_readonly("num_kmers", &KmerCounter::getNumKmers)
         .def_property_readonly("num_unique", &KmerCounter::getUniqueKmers)
 
@@ -272,6 +281,10 @@ void define_KmerCounter(py::module& m) {
 
             return kmer_counter;
         });
+
+    auto Mapping = py::module::import("collections.abc").attr("Mapping");
+    auto Set = py::module::import("collections.abc").attr("Set");
+    py_KmerCounter.attr("__bases__") = py::make_tuple(Mapping, Set).attr("__add__")(py_KmerCounter.attr("__bases__"));
 }
 
 }

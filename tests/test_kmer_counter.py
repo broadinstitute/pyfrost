@@ -7,19 +7,21 @@ from pyfrost import Kmer, KmerCounter
 
 def test_kmer_counter():
     test_str = "ACTGATTTCGATGCGATGCGATGCCACGGTGG"
-    truth_counter = Counter(Kmer(test_str[i:i+5]) for i in range(len(test_str) - 5))
+    truth_counter = Counter(Kmer(test_str[i:i+5]) for i in range(len(test_str) - 5 + 1))
 
-    counter = KmerCounter(5, 3).count_kmers(test_str)
+    counter = KmerCounter(5, 3, canonical=False).count_kmers(test_str)
 
     for kmer, truth in truth_counter.items():
         assert counter.query(kmer) == truth
 
-    counter2 = KmerCounter(5, 3).count_kmers_files(['data/mccortex.fasta'])
+    assert set(counter.keys()) == set(truth_counter.keys())
+
+    counter2 = KmerCounter(5, 3, canonical=False).count_kmers_files(['data/mccortex.fasta'])
 
     for kmer, truth in truth_counter.items():
         assert counter2.query(kmer) == truth
 
-    truth_counter_rep = Counter(Kmer(test_str[i:i+5]).rep() for i in range(len(test_str) - 5))
+    truth_counter_rep = Counter(Kmer(test_str[i:i+5]).rep() for i in range(len(test_str) - 5 + 1))
 
     counter3 = KmerCounter(5, 3).count_kmers(test_str)
 
