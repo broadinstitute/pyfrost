@@ -92,6 +92,11 @@ BifrostDiGraph load(char const* input_graph_file, char const* input_color_file, 
     return BifrostDiGraph(std::move(ccdbg));
 }
 
+void dump(BifrostDiGraph& g, string const& fname_prefix, size_t num_threads=2) {
+    g.getGraph().write(fname_prefix, num_threads);
+    // TODO: write additional GFA tags
+}
+
 void define_BifrostDiGraph(py::module& m) {
     py::class_<BifrostDiGraph>(m, "BifrostDiGraph")
         .def(py::init<>())
@@ -196,6 +201,7 @@ void define_BifrostDiGraph(py::module& m) {
           "Build a colored compacted Bifrost graph from reference FASTA files.");
     m.def("build_from_samples", &build_from_samples, py::return_value_policy::move,
           "Build a colored compacted Bifrost graph from sequencing sample files (FASTQ).");
+    m.def("dump", &dump, "Save graph to file.");
 }
 
 }
