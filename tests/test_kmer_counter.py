@@ -16,6 +16,9 @@ def test_kmer_counter():
 
     assert set(counter.keys()) == set(truth_counter.keys())
 
+    for kmer, count in counter.items():
+        assert count == truth_counter[kmer]
+
     counter2 = KmerCounter(5, 3, canonical=False).count_kmers_files(['data/mccortex.fasta'])
 
     for kmer, truth in truth_counter.items():

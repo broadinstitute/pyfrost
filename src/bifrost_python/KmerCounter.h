@@ -38,7 +38,6 @@ public:
 #include <robin_hood.h>
 #include <File_Parser.hpp>
 
-
 namespace pyfrost {
 
 using std::pair;
@@ -51,7 +50,7 @@ using KmerCountMap = robin_hood::unordered_map<Kmer, uint16_t>;
 class KmerCounterIterator {
 public:
     using iteratory_category = std::input_iterator_tag;
-    using value_type = KmerCountMap::iterator::value_type;
+    using value_type = pair<Kmer, uint16_t>;
     using difference_type = std::ptrdiff_t;
     using reference = value_type&;
     using pointer = value_type*;
@@ -113,10 +112,11 @@ public:
             return {tmp, 0u};
         }
 
-        return *curr_kmer;
+        // Make std::pair to ensure automatic conversion to a py::tuple
+        return make_pair(curr_kmer->first, curr_kmer->second);
     }
 
-    pointer operator->() {
+    robin_hood::pair<const Kmer, uint16_t>* operator->() {
         if(curr_table == table_end) {
             return nullptr;
         }
