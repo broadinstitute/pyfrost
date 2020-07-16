@@ -39,7 +39,7 @@ public:
         data.clear();
     }
 
-    std::string serialize(UnitigColorMap<UnitigDataDict> const& um) {
+    std::string serialize(const_UnitigColorMap<UnitigDataDict> const& um) const {
         // TODO: convert entries in the dict with two letter keys to GFA tags
         return std::string();
     }

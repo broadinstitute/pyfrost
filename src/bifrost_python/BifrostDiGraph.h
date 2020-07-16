@@ -50,6 +50,19 @@ public:
         populateAttrs();
     }
 
+    inline bool remove(Kmer const& kmer) {
+        auto unitig = dbg.find(kmer, true);
+        if(unitig.isEmpty) {
+            throw py::value_error("Kmer is not a unitig.");
+        }
+
+        return dbg.remove(unitig);
+    }
+
+    inline bool remove(char const* kmer) {
+        return remove(Kmer(kmer));
+    }
+
     inline NodeView const& getNodeView() const {
         return nodes;
     }

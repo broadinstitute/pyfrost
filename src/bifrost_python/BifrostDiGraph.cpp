@@ -115,6 +115,9 @@ void define_BifrostDiGraph(py::module& m) {
         .def("find", py::overload_cast<char const*, bool>(&BifrostDiGraph::findUnitig), py::arg("kmer"),
              py::arg("extremities_only") = false)
 
+         .def("remove_node", py::overload_cast<Kmer const&>(&BifrostDiGraph::remove))
+         .def("remove_node", py::overload_cast<char const*>(&BifrostDiGraph::remove))
+
         // adjacency, neigbors, successors, and predececessors all should return an iterator
         .def("neighbors", [] (BifrostDiGraph& self, Kmer const& node) {
             auto view = self.getSuccessors(node);
