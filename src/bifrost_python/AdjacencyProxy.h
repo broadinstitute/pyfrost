@@ -31,8 +31,8 @@ protected:
 public:
     using iterator_type = NodeIterator<decltype(node.getSuccessors().begin())>;
 
-    inline virtual iterator_type begin() const = 0;
-    inline virtual iterator_type end() const = 0;
+    virtual iterator_type begin() const = 0;
+    virtual iterator_type end() const = 0;
 
     PyfrostColoredUMap getUnitig(Kmer const& kmer) {
         auto unitig = dbg.find(kmer, true).mappingToFullUnitig();
@@ -79,12 +79,12 @@ class SuccessorView : public AdjacencyViewBase {
 public:
     explicit SuccessorView(PyfrostCCDBG& dbg, Kmer const& kmer) : AdjacencyViewBase(dbg, kmer) { }
 
-    inline iterator_type begin() const override {
-        return {&dbg, node.getSuccessors().begin()};
+    iterator_type begin() const override {
+        return {&dbg, node.getSuccessors().begin(), false};
     }
 
-    inline iterator_type end() const override {
-        return {&dbg, node.getSuccessors().end()};
+    iterator_type end() const override {
+        return {&dbg, node.getSuccessors().end(), false};
     }
 
     py::dict getEdgeDict(Kmer const& neighbor) const override {
@@ -96,12 +96,12 @@ class PredecessorView : public AdjacencyViewBase {
 public:
     explicit PredecessorView(PyfrostCCDBG& dbg, Kmer const& kmer) : AdjacencyViewBase(dbg, kmer) { }
 
-    inline iterator_type begin() const override {
-        return {&dbg, node.getPredecessors().begin()};
+    iterator_type begin() const override {
+        return {&dbg, node.getPredecessors().begin(), false};
     }
 
-    inline iterator_type end() const override {
-        return {&dbg, node.getPredecessors().end()};
+    iterator_type end() const override {
+        return {&dbg, node.getPredecessors().end(), false};
     }
 
     py::dict getEdgeDict(Kmer const& neighbor) const override {
@@ -126,12 +126,12 @@ public:
         return getView(Kmer(kmer));
     }
 
-    inline auto begin() const {
-        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.begin());
+    auto begin() const {
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.begin(), false);
     }
 
-    inline auto end() const {
-        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.end());
+    auto end() const {
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.end(), false);
     }
 
     inline bool contains(Kmer const& kmer) {
@@ -156,7 +156,5 @@ private:
 void define_AdjacencyProxy(py::module& m);
 
 }
-
-
 
 #endif //PYFROST_ADJACENCYVIEW_H

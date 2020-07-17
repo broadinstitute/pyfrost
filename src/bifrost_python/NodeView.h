@@ -54,14 +54,14 @@ public:
      * Iterate over unitigs (nodes)
      */
     inline auto begin() const {
-        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.begin());
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.begin(), false);
     }
 
     /**
      * End of the unitig (node) iterator
      */
     inline auto end() const {
-        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.end());
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.end(), false);
     }
 
     size_t numNodes() const {

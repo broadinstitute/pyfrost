@@ -21,6 +21,7 @@ Kmer to_kmer(py::handle const& obj) {
 
     Kmer kmer;
     kmer.set_empty();
+    //kmer.set_deleted();
 
     return kmer;
 }
@@ -99,10 +100,7 @@ void define_Kmer(py::module &m) {
         .def("__str__", [] (Kmer const& self) { return self.toString(); })
         .def("__repr__", [] (Kmer const& self) { return "<Kmer '" + self.toString() + "'>"; })
         .def("__bool__", [] (Kmer const& self) {
-            Kmer empty;
-            empty.set_empty();
-
-            return self != empty;
+            return !is_kmer_empty(self);
         })
         .def("__hash__", [] (Kmer const& self) { return self.hash(); })
         .def("hash", &Kmer::hash, "Get the hash value for this k-mer", py::arg("seed") = 0);

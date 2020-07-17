@@ -38,7 +38,7 @@ void define_NodeView(py::module& m) {
             // Call without parameters just returns the node iterator
         .def("__call__", [] (NodeView const& self) {
             return py::make_iterator(self.begin(), self.end());
-        })
+        }, py::keep_alive<0, 1>())
 
             // With data arguments we return a NodeDataView
         .def("__call__", [] (NodeView& self, py::object const& data, py::object const& default_value) {

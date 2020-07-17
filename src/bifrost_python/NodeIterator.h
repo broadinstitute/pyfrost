@@ -30,15 +30,17 @@ public:
     using reference = value_type&;
     using pointer = value_type*;
 
-    NodeIterator(PyfrostCCDBG* dbg, T iter) : dbg(dbg), wrapped(iter) {
+    NodeIterator(PyfrostCCDBG* dbg, T iter, bool _check_valid=true) :
+        dbg(dbg), wrapped(iter), check_valid(_check_valid)
+    {
         setCurrentKmer();
     }
 
-    NodeIterator(NodeIterator const& o) : dbg(o.dbg), wrapped(o.wrapped) {
+    NodeIterator(NodeIterator const& o) : dbg(o.dbg), wrapped(o.wrapped), check_valid(o.check_valid) {
         setCurrentKmer();
     };
 
-    NodeIterator(NodeIterator&& o) noexcept : dbg(o.dbg), wrapped(std::move(o.wrapped)) {
+    NodeIterator(NodeIterator&& o) noexcept : dbg(o.dbg), wrapped(std::move(o.wrapped)), check_valid(o.check_valid) {
         setCurrentKmer();
         o.dbg = nullptr;
     }
@@ -65,15 +67,21 @@ public:
      * a unitig, return an empty k-mer object.
      */
     NodeIterator& operator++() {
-        // Move iterator along. If we encounter an invalid value, continue moving, until the iterator doesn't change
-        // anymore.
-        auto prev = T(wrapped);
-        do {
-            prev = wrapped;
-            ++wrapped;
+        if(check_valid) {
+            // Move iterator along. If we encounter an invalid value, continue moving, until the iterator doesn't change
+            // anymore.
+            T prev;
+            do {
+                prev = wrapped;
+                ++wrapped;
 
+                setCurrentKmer();
+            } while (is_kmer_empty(current) && prev != wrapped);
+
+        } else {
+            ++wrapped;
             setCurrentKmer();
-        } while (is_kmer_empty(current) && prev != wrapped);
+        }
 
         return *this;
     }
@@ -105,18 +113,21 @@ private:
     PyfrostCCDBG* dbg = nullptr;
     T wrapped;
     Kmer current;
+    bool check_valid;
 
     void setCurrentKmer() {
         current = to_kmer(*wrapped);
 
-        if(dbg != nullptr) {
-            auto unitig = dbg->find(current, true);
+        if(check_valid) {
+            if(dbg != nullptr) {
+                auto unitig = dbg->find(current, true);
 
-            if(unitig.isEmpty) {
+                if(unitig.isEmpty) {
+                    current.set_empty();
+                }
+            } else {
                 current.set_empty();
             }
-        } else {
-            current.set_empty();
         }
     }
 
@@ -175,11 +186,11 @@ public:
     NodeIterable(NodeIterable<void>&& o) noexcept = default;
 
     iterator_type begin() const {
-        return {&dbg, dbg.begin()};
+        return {&dbg, dbg.begin(), false};
     }
 
     iterator_type end() const {
-        return {&dbg, dbg.end()};
+        return {&dbg, dbg.end(), false};
     }
 
     PyfrostCCDBG& getGraph() const {

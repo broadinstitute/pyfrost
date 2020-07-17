@@ -16,7 +16,7 @@ void define_AdjacencyProxy(py::module& m) {
         .def("__contains__", py::overload_cast<char const*>(&AdjacencyViewBase::contains), py::is_operator())
         .def("__contains__", py::overload_cast<Kmer const&>(&AdjacencyViewBase::contains), py::is_operator())
 
-        .def("__getitem__", [] (AdjacencyViewBase const& self, Kmer) {
+        .def("__getitem__", [] (AdjacencyViewBase const& self, const Kmer&) {
             return py::dict(); // TODO
         });
 
