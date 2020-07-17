@@ -122,29 +122,29 @@ void define_BifrostDiGraph(py::module& m) {
         .def("neighbors", [] (BifrostDiGraph& self, Kmer const& node) {
             auto view = self.getSuccessors(node);
             return py::make_iterator(view.begin(), view.end());
-        })
+        }, py::keep_alive<0, 1>())
         .def("neighbors", [] (BifrostDiGraph& self, char const* node) {
             auto view = self.getSuccessors(node);
             return py::make_iterator(view.begin(), view.end());
-        })
+        }, py::keep_alive<0, 1>())
 
         .def("successors", [] (BifrostDiGraph& self, Kmer const& node) {
             auto view = self.getSuccessors(node);
             return py::make_iterator(view.begin(), view.end());
-        })
+        }, py::keep_alive<0, 1>())
         .def("successors", [] (BifrostDiGraph& self, char const* node) {
             auto view = self.getSuccessors(node);
             return py::make_iterator(view.begin(), view.end());
-        })
+        }, py::keep_alive<0, 1>())
 
         .def("predecessors", [] (BifrostDiGraph& self, Kmer const& node) {
             auto view = self.getPredecessors(node);
             return py::make_iterator(view.begin(), view.end());
-        })
+        }, py::keep_alive<0, 1>())
         .def("predecessors", [] (BifrostDiGraph& self, char const* node) {
             auto view = self.getPredecessors(node);
             return py::make_iterator(view.begin(), view.end());
-        })
+        }, py::keep_alive<0, 1>())
 
         .def_property_readonly("degree", [] (BifrostDiGraph& self) {
             return DegreeView<>(NodeIterable<>(self.getGraph()));
@@ -165,7 +165,7 @@ void define_BifrostDiGraph(py::module& m) {
         .def("__iter__", [] (BifrostDiGraph const& self) {
             return py::make_iterator<py::return_value_policy::copy>(self.getSuccessorsProxy().begin(),
                                                                     self.getSuccessorsProxy().end());
-        })
+        }, py::keep_alive<0, 1>())
 
         .def("nbunch_iter", [] (BifrostDiGraph& self, const py::iterable& nbunch) {
             return py::make_iterator(
@@ -178,9 +178,12 @@ void define_BifrostDiGraph(py::module& m) {
 
         .def_property_readonly("nodes", &BifrostDiGraph::getNodeView,
                                "Get nodes in the graph.")
-        .def_property_readonly("edges", &BifrostDiGraph::getOutEdgeView, "Get the outgoing edges of a graph.")
-        .def_property_readonly("out_edges", &BifrostDiGraph::getOutEdgeView, "Get the outgoing edges of a graph.")
-        .def_property_readonly("in_edges", &BifrostDiGraph::getInEdgeView, "Get the incoming edges of a graph.")
+        .def_property_readonly("edges", &BifrostDiGraph::getOutEdgeView,
+            "Get the outgoing edges of a graph.")
+        .def_property_readonly("out_edges", &BifrostDiGraph::getOutEdgeView,
+            "Get the outgoing edges of a graph.")
+        .def_property_readonly("in_edges", &BifrostDiGraph::getInEdgeView,
+                               "Get the incoming edges of a graph.")
 
         .def_property_readonly("succ", &BifrostDiGraph::getSuccessorsProxy,
                                "Get successors keyed by node.")
@@ -204,7 +207,8 @@ void define_BifrostDiGraph(py::module& m) {
           "Build a colored compacted Bifrost graph from reference FASTA files.");
     m.def("build_from_samples", &build_from_samples, py::return_value_policy::move,
           "Build a colored compacted Bifrost graph from sequencing sample files (FASTQ).");
-    m.def("dump", &dump, "Save graph to file.");
+    m.def("dump", &dump, py::arg("g"), py::arg("fname_prefix"), py::arg("num_threads") = 2,
+        "Save graph to file.");
 }
 
 }
