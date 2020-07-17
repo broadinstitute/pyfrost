@@ -59,17 +59,13 @@ void KmerCounter::setKmerGmer() {
 
 KmerCounter& KmerCounter::countKmers(std::string const& str)
 {
-    finished_reading = false;
-    thread counter_thread(&KmerCounter::counterThread, this);
-
     unique_lock<mutex> guard(queue_lock);
     seq_queue.emplace(str);
     guard.unlock();
-
-    sequence_ready.notify_one();
-
     finished_reading = true;
-    sequence_ready.notify_all();
+
+    thread counter_thread(&KmerCounter::counterThread, this);
+    sequence_ready.notify_one();
 
     counter_thread.join();
 
@@ -174,7 +170,7 @@ void KmerCounter::counterThread()
                 uint64_t minimizer_hash = it_min.getHash();
                 size_t table_ix = minimizer_hash % tables.size();
 
-                lock_guard<mutex> table_guard(table_locks[table_ix]);
+                unique_lock<mutex> table_guard(table_locks[table_ix]);
                 uint16_t curr_count = 0;
                 if(tables[table_ix].contains(kmer)) {
                     curr_count = tables[table_ix][kmer];
@@ -188,6 +184,7 @@ void KmerCounter::counterThread()
                 }
 
                 tables[table_ix].insert_or_assign(kmer, curr_count);
+                table_guard.unlock();
             }
         }
     }
@@ -309,7 +306,6 @@ template<typename Archive>
 void load_minimal(Archive& ar, Kmer& kmer, std::string const& value)
 {
     istringstream stream(value);
-    kmer.set_empty();
     kmer.read(stream);
 }
 
