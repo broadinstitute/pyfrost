@@ -29,7 +29,7 @@ class UnitigDataProxy {
 public:
     friend class UnitigDataKeyIterator;
 
-    explicit UnitigDataProxy(PyfrostColoredUMap const& unitig) : unitig(unitig) {
+    explicit UnitigDataProxy(PyfrostColoredUMap const& _unitig) : unitig(_unitig) {
         if(unitig.isEmpty) {
             throw std::runtime_error("Trying to construct UnitigDataProxy for non-existent unitig.");
         }

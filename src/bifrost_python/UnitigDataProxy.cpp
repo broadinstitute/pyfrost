@@ -146,9 +146,6 @@ Kmer UnitigDataProxy::unitigTail() const {
 
 UnitigDataKeyIterator UnitigDataProxy::begin() const {
     auto& data_dict = getDataDict();
-    for(auto const& item : data_dict) {
-        std::cout << py::cast<std::string>(item.first) << "-" << py::cast<std::string>(item.second) << std::endl;
-    }
 
     return {hardcoded_keys.cbegin(), hardcoded_keys.cend(),
         data_dict.begin()};
