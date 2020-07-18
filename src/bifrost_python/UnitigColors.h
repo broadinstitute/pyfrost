@@ -23,7 +23,7 @@ public:
     value_type operator*() const;
     pointer operator->() const;
 
-    void operator++();
+    UnitigColorIterator& operator++();
     UnitigColorIterator operator++(int);
 
     bool operator==(UnitigColorIterator const& o);
@@ -36,7 +36,13 @@ private:
 
 class UnitigColorsProxy {
 public:
-    explicit UnitigColorsProxy(PyfrostColoredUMap const& unitig) : unitig(unitig) { }
+    explicit UnitigColorsProxy(PyfrostColoredUMap const& _unitig) :
+        unitig(_unitig), colorset(unitig.getData()->getUnitigColors(unitig))
+    {
+        if(colorset == nullptr) {
+            throw std::runtime_error("Invalid colorset for unitig! Got a nullptr...");
+        }
+    }
 
     UnitigColorsProxy(UnitigColorsProxy const& o) = default;
     UnitigColorsProxy(UnitigColorsProxy&& o) = default;
@@ -53,29 +59,36 @@ public:
     }
 
     bool contains(size_t color_id) const {
-        auto colorset = unitig.getData()->getUnitigColors(unitig);
-
         return colorset->contains(unitig, color_id);
     }
 
+    void add(size_t color_id) {
+        colorset->add(unitig, color_id);
+    }
+
+    void discard(size_t color_id) {
+        colorset->remove(unitig, color_id);
+    }
+
     UnitigColorIterator begin() const {
-        return UnitigColorIterator(unitig.getData()->getUnitigColors(unitig)->begin(unitig));
+        return UnitigColorIterator(colorset->begin(unitig));
     }
 
     UnitigColorIterator end() const {
-        return UnitigColorIterator(unitig.getData()->getUnitigColors(unitig)->end());
+        return UnitigColorIterator(colorset->end());
     }
 
     size_t size() const {
-        return unitig.getData()->getUnitigColors(unitig)->size(unitig);
+        return colorset->size(unitig);
     }
 
     size_t numKmersWithColor(size_t color_id) {
-        return unitig.getData()->getUnitigColors(unitig)->size(unitig, color_id);
+        return colorset->size(unitig, color_id);
     }
 
 private:
     PyfrostColoredUMap unitig;
+    UnitigColors* colorset;
 };
 
 

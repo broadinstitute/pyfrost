@@ -22,11 +22,13 @@ UnitigColorIterator::pointer UnitigColorIterator::operator->() const {
     return &current;
 }
 
-void UnitigColorIterator::operator++() {
+UnitigColorIterator& UnitigColorIterator::operator++() {
     iter.nextColor();
     if(!iter.isInvalid()) {
         current = iter.getColorID();
     }
+
+    return *this;
 }
 
 UnitigColorIterator UnitigColorIterator::operator++(int) {
@@ -54,14 +56,17 @@ void define_UnitigColors(py::module &m) {
             return py::make_iterator(self.begin(), self.end());
         }, py::keep_alive<0, 1>())
 
+        .def("add", &UnitigColorsProxy::add)
+        .def("discard", &UnitigColorsProxy::discard)
+
         .def_static("_from_iterable", [] (py::iterable const& iterable) {
             return py::set(iterable);
         })
 
         .def("num_kmers_with_color", &UnitigColorsProxy::numKmersWithColor);
 
-    auto Set = py::module::import("collections.abc").attr("Set");
-    py_UnitigColors.attr("__bases__") = py::make_tuple(Set).attr("__add__")(py_UnitigColors.attr("__bases__"));
+    auto MutableSet = py::module::import("collections.abc").attr("MutableSet");
+    py_UnitigColors.attr("__bases__") = py::make_tuple(MutableSet).attr("__add__")(py_UnitigColors.attr("__bases__"));
 }
 
 }
