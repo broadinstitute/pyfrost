@@ -1,5 +1,4 @@
 include versioneer.py
-include CMakeLists.txt
 recursive-include src *.py *.h *.cpp *.txt
 recursive-include tests *.py *.cpp *.h *.txt *.fasta
 recursive-include vendor *.txt *.h *.hh *.c *.cpp *.tcc *.hpp *.cmake *.in *.rst *.sh

@@ -23,6 +23,7 @@ class get_pybind_include(object):
 
 def bifrost_sources():
     file_exts = ["*.c", "*.cpp"]
+    base_path = Path(__file__).parent
     bifrost_path = Path(__file__).parent / "vendor/bifrost/src"
 
     for ext in file_exts:
@@ -30,7 +31,7 @@ def bifrost_sources():
             if fname.name in {"Bifrost.cpp", "xxhash.c"}:
                 continue
 
-            yield str(fname)
+            yield str(fname.relative_to(base_path))
 
 
 ext_modules = [
