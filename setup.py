@@ -7,11 +7,13 @@ from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 from distutils.version import LooseVersion
 
+from typing import Union, List
+
 import versioneer
 
 
 class CMakeExtension(Extension):
-    def __init__(self, name, sourcedir='', target=''):
+    def __init__(self, name, sourcedir='', target: Union[List[str], str]=None):
         Extension.__init__(self, name, sources=[])
         self.sourcedir = os.path.abspath(sourcedir)
         self.target = target
@@ -41,9 +43,6 @@ class CMakeBuild(build_ext):
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
 
-        if ext.target:
-            build_args.extend(['--target', ext.target])
-
         if platform.system() == "Windows":
             cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(),
                                                                            extdir)]
@@ -60,7 +59,18 @@ class CMakeBuild(build_ext):
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
-        subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
+
+        if ext.target:
+            if isinstance(ext.target, list):
+                for target in ext.target:
+                    subprocess.check_call(['cmake', '--build', '.', '--target', target] + build_args,
+                                          cwd=self.build_temp)
+            else:
+                subprocess.check_call(['cmake', '--build', '.', '--target', ext.target] + build_args,
+                                      cwd=self.build_temp)
+        else:
+            subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
+
 
 setup(
     name='pyfrost',
@@ -74,7 +84,7 @@ setup(
     package_dir={'': 'src'},
     include_package_data=True,
 
-    ext_modules=[CMakeExtension('bifrost_python', target='bifrost_python')],
+    ext_modules=[CMakeExtension('bifrost_python', target=['bifrost_python'])],
     cmdclass=dict(build_ext=CMakeBuild, **versioneer.get_cmdclass()),
     zip_safe=False,
 )
