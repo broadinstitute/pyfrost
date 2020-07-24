@@ -156,6 +156,10 @@ setup(
     package_dir={'': 'src'},
     include_package_data=True,
 
+    install_requires=[
+        "pybind11"
+    ],
+
     ext_modules=ext_modules,
     cmdclass=dict(build_ext=BuildExt, **versioneer.get_cmdclass()),
     zip_safe=False,
