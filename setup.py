@@ -156,8 +156,8 @@ setup(
     package_dir={'': 'src'},
     include_package_data=True,
 
-    install_requires=[
-        "pybind11"
+    setup_requires=[
+        "pybind11>=2.5.0"
     ],
 
     ext_modules=ext_modules,
