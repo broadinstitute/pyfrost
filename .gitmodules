@@ -1,3 +1,9 @@
 [submodule "vendor/bifrost"]
 	path = vendor/bifrost
 	url = https://github.com/lrvdijk/bifrost
+[submodule "vendor/pybind11"]
+	path = vendor/pybind11
+	url = https://github.com/pybind/pybind11
+[submodule "vendor/Catch2"]
+	path = vendor/Catch2
+	url = https://github.com/catchorg/Catch2

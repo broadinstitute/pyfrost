@@ -9,7 +9,9 @@ add_subdirectory(pybind11)
 add_subdirectory(Catch2)
 
 # Include fast hash table
-add_subdirectory(robin-hood-hashing)
+add_library(robin_hood INTERFACE)
+target_include_directories(robin_hood INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/robin-hood-hashing/include)
 
 # Include cereal serialization library
-add_subdirectory(cereal)
+add_library(cereal INTERFACE)
+target_include_directories(cereal INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/cereal/include)

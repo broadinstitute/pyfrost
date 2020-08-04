@@ -1,148 +1,76 @@
 import os
+import re
 import sys
-from pathlib import Path
-import setuptools
+import platform
+import subprocess
 from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
-from distutils.sysconfig import customize_compiler
+from distutils.version import LooseVersion
+
+from typing import Union, List
 
 import versioneer
 
 
-class get_pybind_include(object):
-    """Helper class to determine the pybind11 include path
-
-    The purpose of this class is to postpone importing pybind11
-    until it is actually installed, so that the ``get_include()``
-    method can be invoked. """
-
-    def __str__(self):
-        import pybind11
-        return pybind11.get_include()
+class CMakeExtension(Extension):
+    def __init__(self, name, sourcedir='', target: Union[List[str], str]=None):
+        Extension.__init__(self, name, sources=[])
+        self.sourcedir = os.path.abspath(sourcedir)
+        self.target = target
 
 
-def bifrost_sources():
-    file_exts = ["*.c", "*.cpp"]
-    base_path = Path(__file__).parent
-    bifrost_path = Path(__file__).parent / "vendor/bifrost/src"
-
-    for ext in file_exts:
-        for fname in bifrost_path.glob(ext):
-            if fname.name in {"Bifrost.cpp", "xxhash.c"}:
-                continue
-
-            yield str(fname.relative_to(base_path))
-
-
-ext_modules = [
-    Extension(
-        'bifrost_python',
-        # Sort input source files to ensure bit-for-bit reproducible builds
-        # (https://github.com/pybind/python_example/pull/53)
-        sorted([
-            *bifrost_sources(),
-            "src/bifrost_python/Kmer.cpp",
-            "src/bifrost_python/KmerCounter.cpp",
-            "src/bifrost_python/UnitigColors.cpp",
-            "src/bifrost_python/UnitigDataProxy.cpp",
-            "src/bifrost_python/AdjacencyProxy.cpp",
-            "src/bifrost_python/NodeView.cpp",
-            "src/bifrost_python/EdgeView.cpp",
-            "src/bifrost_python/BifrostDiGraph.cpp",
-            "src/bifrost_python/bifrost_python.cpp",
-        ]),
-        define_macros=[
-            ('XXH_NAMESPACE', 'BIFROST_HASH_'),
-            ('MAX_KMER_SIZE', os.environ.get("MAX_KMER_SIZE", "32")),
-        ],
-        include_dirs=[
-            # Path to pybind11 headers
-            get_pybind_include(),
-            'vendor/bifrost/src',
-            'vendor/cereal/include/',
-            'vendor/robin-hood-hashing/include/'
-        ],
-        language="c++"
-    ),
-]
-
-
-# cf http://bugs.python.org/issue26689
-def has_flag(compiler, flagname):
-    """Return a boolean indicating whether a flag name is supported on
-    the specified compiler.
-    """
-    import tempfile
-    import os
-    with tempfile.NamedTemporaryFile('w', suffix='.cpp', delete=False) as f:
-        f.write('int main (int argc, char **argv) { return 0; }')
-        fname = f.name
-    try:
-        compiler.compile([fname], extra_postargs=[flagname])
-    except setuptools.distutils.errors.CompileError:
-        return False
-    finally:
+class CMakeBuild(build_ext):
+    def run(self):
         try:
-            os.remove(fname)
+            out = subprocess.check_output(['cmake', '--version'])
         except OSError:
-            pass
-    return True
+            raise RuntimeError("CMake must be installed to build the following extensions: " +
+                               ", ".join(e.name for e in self.extensions))
 
-
-def cpp_flag(compiler):
-    """Return the -std=c++[11/14/17] compiler flag.
-
-    The newer version is prefered over c++11 (when it is available).
-    """
-    flags = ['-std=c++14']
-
-    for flag in flags:
-        if has_flag(compiler, flag):
-            return flag
-
-    raise RuntimeError('Unsupported compiler -- at least C++14 support '
-                       'is needed!')
-
-
-class BuildExt(build_ext):
-    """A custom build extension for adding compiler-specific options."""
-    c_opts = {
-        'msvc': ['/EHsc'],
-        'unix': ['-Wno-unused-private-field', '-Wno-unused-function',
-                 '-Wno-unused-variable', '-Wno-sign-compare'],
-    }
-    l_opts = {
-        'msvc': [],
-        'unix': ['-lz', '-lpthread'],
-    }
-
-    if sys.platform == 'darwin':
-        darwin_opts = ['-stdlib=libc++', '-mmacosx-version-min=10.7']
-        c_opts['unix'] += darwin_opts
-        l_opts['unix'] += darwin_opts
-
-    def build_extensions(self):
-        ct = self.compiler.compiler_type
-        opts = self.c_opts.get(ct, [])
-        link_opts = self.l_opts.get(ct, [])
-        if ct == 'unix':
-            extra_cpp_flags = cpp_flag(self.compiler)
-
-            os.environ['CPPFLAGS'] = os.environ.get('CPPFLAGS', "") + f" {extra_cpp_flags}"
-            customize_compiler(self.compiler)
-
-            if has_flag(self.compiler, '-fvisibility=hidden'):
-                opts.append('-fvisibility=hidden')
+        if platform.system() == "Windows":
+            cmake_version = LooseVersion(re.search(r'version\s*([\d.]+)', out.decode()).group(1))
+            if cmake_version < '3.1.0':
+                raise RuntimeError("CMake >= 3.1.0 is required on Windows")
 
         for ext in self.extensions:
-            if not ext.define_macros:
-                ext.define_macros = []
+            self.build_extension(ext)
 
-            ext.define_macros.append(('VERSION_INFO', '"{}"'.format(self.distribution.get_version())))
-            ext.extra_compile_args = opts
-            ext.extra_link_args = link_opts
+    def build_extension(self, ext):
+        extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
+        cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
+                      '-DPYTHON_EXECUTABLE=' + sys.executable]
 
-        super().build_extensions()
+        cfg = 'Debug' if self.debug else 'Release'
+        build_args = ['--config', cfg]
+
+        if platform.system() == "Windows":
+            cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(),
+                                                                           extdir)]
+            if sys.maxsize > 2**32:
+                cmake_args += ['-A', 'x64']
+            build_args += ['--', '/m']
+        else:
+            cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
+            build_args += ['--', '-j2']
+
+        env = os.environ.copy()
+        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(
+            env.get('CXXFLAGS', ''), self.distribution.get_version())
+        if not os.path.exists(self.build_temp):
+            os.makedirs(self.build_temp)
+        subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
+
+        if ext.target:
+            if isinstance(ext.target, list):
+                for target in ext.target:
+                    subprocess.check_call(['cmake', '--build', '.', '--target', target] + build_args,
+                                          cwd=self.build_temp)
+            else:
+                subprocess.check_call(['cmake', '--build', '.', '--target', ext.target] + build_args,
+                                      cwd=self.build_temp)
+        else:
+            subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
+
 
 setup(
     name='pyfrost',
@@ -156,11 +84,9 @@ setup(
     package_dir={'': 'src'},
     include_package_data=True,
 
-    setup_requires=[
-        "pybind11>=2.5.0"
-    ],
+    setup_requires=['cmake>=3.10'],
 
-    ext_modules=ext_modules,
-    cmdclass=dict(build_ext=BuildExt, **versioneer.get_cmdclass()),
+    ext_modules=[CMakeExtension('bifrost_python', target=['bifrost_python'])],
+    cmdclass=dict(build_ext=CMakeBuild, **versioneer.get_cmdclass()),
     zip_safe=False,
 )
