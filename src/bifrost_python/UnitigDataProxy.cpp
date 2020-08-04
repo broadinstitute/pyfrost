@@ -57,7 +57,7 @@ py::object UnitigDataProxy::getData(std::string const& key) const {
             return py::cast(unitig.len);
 
         case UnitigMetaKeys::POS:
-            return py::cast((unitig.strand || unitig.isFullMapping())
+            return py::cast(unitig.strand
                 ? unitig.dist
                 : (unitig.size - unitig.getGraph()->getK() - unitig.dist));
 
@@ -83,7 +83,19 @@ py::object UnitigDataProxy::getData(std::string const& key) const {
             return py::cast(unitig.isFullMapping());
 
         case UnitigMetaKeys::COLORS:
-            return py::cast(UnitigColorsProxy(unitig));
+        {
+            if(!unitig.strand) {
+                auto um = unitig;
+
+                // Transform to forward orientation if necessary
+                um.strand = true;
+                um.dist = 0;
+
+                return py::cast(UnitigColorsProxy(um, true));
+            } else {
+                return py::cast(UnitigColorsProxy(unitig));
+            }
+        }
 
         default:
         {

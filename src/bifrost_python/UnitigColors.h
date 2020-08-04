@@ -36,8 +36,8 @@ private:
 
 class UnitigColorsProxy {
 public:
-    explicit UnitigColorsProxy(PyfrostColoredUMap const& _unitig) :
-        unitig(_unitig), colorset(unitig.getData()->getUnitigColors(unitig))
+    explicit UnitigColorsProxy(PyfrostColoredUMap const& _unitig, bool _rev_compl = false) :
+        unitig(_unitig), rev_compl(_rev_compl), colorset(unitig.getData()->getUnitigColors(unitig))
     {
         if(colorset == nullptr) {
             throw std::runtime_error("Invalid colorset for unitig! Got a nullptr...");
@@ -48,7 +48,14 @@ public:
     UnitigColorsProxy(UnitigColorsProxy&& o) = default;
 
     UnitigColorsProxy getColorsAtPos(long pos) {
-        size_t new_pos = pos < 0 ? unitig.size - unitig.getGraph()->getK() + 1 + pos : static_cast<size_t>(pos);
+        size_t new_pos;
+
+        if(rev_compl) {
+            new_pos = pos >= 0 ? unitig.size - unitig.getGraph()->getK() + 1 + pos : static_cast<size_t>(pos);
+        } else {
+            new_pos = pos < 0 ? unitig.size - unitig.getGraph()->getK() + 1 + pos : static_cast<size_t>(pos);
+        }
+
         auto new_unitig = unitig.getKmerMapping(new_pos);
 
         if(new_unitig.isEmpty) {
@@ -88,6 +95,7 @@ public:
 
 private:
     PyfrostColoredUMap unitig;
+    bool rev_compl;
     UnitigColors* colorset;
 };
 
