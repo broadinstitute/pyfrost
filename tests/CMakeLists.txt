@@ -1,6 +1,7 @@
 add_executable(tests_main
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_mccortex.cpp
+    test_main.cpp
+    test_mccortex.cpp
+    test_node_removal.cpp
     )
 
 target_link_libraries(tests_main PRIVATE bifrost_static Catch2::Catch2)

@@ -33,6 +33,32 @@ TEST_CASE("Test McCortex example", "[dbg_construction]") {
         REQUIRE(test_graph.nbKmers() == 21);
     }
 
+    SECTION("Check conversion of mapping to full unitig") {
+        // Kmer in reverse orientation with respect to the unitig
+        auto um = test_graph.find(Kmer("ACTGA"));
+        std::cerr << um.referenceUnitigToString() << std::endl;
+        std::cerr << um.mappedSequenceToString() << std::endl;
+        std::cerr << "Dist: " << um.dist << " len: " << um.len << " Strand: " << um.strand << std::endl;
+
+        um.len = 2;
+        std::cerr << um.referenceUnitigToString() << std::endl;
+        std::cerr << um.mappedSequenceToString() << std::endl;
+        std::cerr << "Dist: " << um.dist << " len: " << um.len << " Strand: " << um.strand << std::endl;
+
+        um.len = 7;
+        std::cerr << um.referenceUnitigToString() << std::endl;
+        std::cerr << um.mappedSequenceToString() << std::endl;
+        std::cerr << "Dist: " << um.dist << " len: " << um.len << " Strand: " << um.strand << std::endl;
+
+        // Test in forward orientation
+        um = test_graph.find(Kmer("TCGAA"));
+        um.len = 7;
+        std::cerr << "Forward orientation:" << std::endl;
+        std::cerr << um.referenceUnitigToString() << std::endl;
+        std::cerr << um.mappedSequenceToString() << std::endl;
+        std::cerr << "Dist: " << um.dist << " len: " << um.len << " Strand: " << um.strand << std::endl;
+    }
+
     SECTION("Check successors of an unitig") {
         auto start_unitig = test_graph.find(Kmer("ACTGA"), true).mappingToFullUnitig();
 
