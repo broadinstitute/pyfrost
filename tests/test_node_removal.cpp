@@ -13,6 +13,18 @@ TEST_CASE("Test node/color removal", "[node_color_removal]") {
     ColoredCDBG<> ccdbg(opt.k, opt.g);
     ccdbg.read("data/F11-frags.gfa", "data/F11-frags.bfg_colors", 2);
 
+    for(auto const& um : ccdbg) {
+        auto colorset = um.getData()->getUnitigColors(um);
+
+        REQUIRE(colorset != nullptr);
+        int num_colors = 0;
+        for(auto it = colorset->begin(um); it != colorset->end(); ++it) {
+            ++num_colors;
+        }
+
+        REQUIRE(num_colors > 0);
+    }
+
     ifstream to_remove;
     to_remove.open("data/to_remove.txt");
 
@@ -25,6 +37,8 @@ TEST_CASE("Test node/color removal", "[node_color_removal]") {
 
         Kmer kmer = Kmer(node.c_str());
         auto um = ccdbg.find(kmer, true).mappingToFullUnitig();
+        REQUIRE(!um.isEmpty);
+
         um.strand = true;
         um.dist = 0;
 
@@ -35,6 +49,11 @@ TEST_CASE("Test node/color removal", "[node_color_removal]") {
         if(colorset->size(um) == 0) {
             unitigs_to_remove.emplace_back(um.getUnitigHead());
         }
+    }
+
+    for(auto const& um : ccdbg) {
+        auto colorset = um.getData()->getUnitigColors(um);
+        REQUIRE(colorset != nullptr);
     }
 
     for(auto const& kmer : unitigs_to_remove) {
@@ -48,6 +67,18 @@ TEST_CASE("Test node/color removal", "[node_color_removal]") {
         um.dist = 0;
 
         ccdbg.remove(um);
+    }
+
+    for(auto const& um : ccdbg) {
+        auto colorset = um.getData()->getUnitigColors(um);
+
+        REQUIRE(colorset != nullptr);
+        int num_colors = 0;
+        for(auto it = colorset->begin(um); it != colorset->end(); ++it) {
+            ++num_colors;
+        }
+
+        REQUIRE(num_colors > 0);
     }
 
     ccdbg.write("cleaned");
