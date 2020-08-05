@@ -58,6 +58,8 @@ TEST_CASE("Test node/color removal", "[node_color_removal]") {
     for(auto const& um : ccdbg) {
         auto colorset = um.getData()->getUnitigColors(um);
 
+        REQUIRE(colorset != nullptr);
+
         int num_colors = 0;
         for(auto it = colorset->begin(um); it != colorset->end(); ++it) {
             ++num_colors;
