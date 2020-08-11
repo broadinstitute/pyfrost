@@ -183,3 +183,57 @@ example. The metadata, however, now shows different values for
 this k-mer doesn't represent a whole unitig. `head` and `tail` still refer to
 the head and tail k-mer of the whole unitig.
 
+### Access unitig colors
+
+Bifrost builds *colored* compacted De Bruijn graphs, and keeps track which k-mers are observed in which references
+/samples. To obtain which colors are associated with a unitig or a k-mer, access 'colors' in the unitig metadata dict.
+
+```python
+for n, data in g.nodes(data=True):
+    for c in data['colors']:
+        print("Node", n, "has color", c)
+
+```
+
+**Note:** By default `data['colors']` iterates over *all* colors associated with any of the k-mers of that unitig. 
+However, it is possible that not all k-mers share the same colors. To access the colors of a specific k-mer of the
+unitig use `g.find()` or index:
+ 
+```python
+for n, data in g.nodes(data=True):
+    print("Colors of first k-mer in the unitig:", set(data['colors'][0]))
+```
+
+### Build the DNA sequence for a path through the graph:
+
+```pycon
+>>> from pyfrost import Kmer, path_sequence, path_nucleotide_length
+
+# Three nodes: ACTGATTTCGA, TCGAT, CGATGC
+>>> path_sequence(g, [Kmer('ACTGA'), Kmer('TCGAT'), Kmer('CGATG')])
+ACTGATTTCGATGC
+>>> path_nucleotide_length(g, [Kmer('ACTGA'), Kmer('TCGAT'), Kmer('CGATG')])
+14
+```
+
+### K-mer counter
+
+Pyfrost includes a separate k-mer counter. It's still pretty unoptimzed and slow though, but it works.
+
+
+```pycon
+>>> from pyfrost import KmerCounter
+>>> counter = KmerCounter(31).count_kmers("ACTGCTAGCTAGCTACGTACGTACGATCGTACATGCATGC")
+>>> counter["ACTGCTAGCTAGCTACGTACGTACGATCGT"]
+1
+
+# You can k-merize (gzipped) FASTA/FASTQ files directly
+>>> counter = KmerCounter(31).count_kmers_files(["data/sample1.fq.gz", "data/sample.2.fq.gz"])
+
+# Save counts for later use
+>>> counter.save("sampe.counts")
+
+# Load k-mer counts
+>>> counter = KmerCounter.from_file("sample.counts")
+```
+
