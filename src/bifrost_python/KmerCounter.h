@@ -45,12 +45,13 @@ using std::vector;
 
 class KmerCounter;
 
-using KmerCountMap = robin_hood::unordered_map<Kmer, uint16_t>;
+typedef uint16_t kmercount_t;
+using KmerCountMap = robin_hood::unordered_map<Kmer, kmercount_t>;
 
 class KmerCounterIterator {
 public:
     using iteratory_category = std::input_iterator_tag;
-    using value_type = pair<Kmer, uint16_t>;
+    using value_type = pair<Kmer, kmercount_t>;
     using difference_type = std::ptrdiff_t;
     using reference = value_type&;
     using pointer = value_type*;
@@ -116,7 +117,7 @@ public:
         return make_pair(curr_kmer->first, curr_kmer->second);
     }
 
-    robin_hood::pair<const Kmer, uint16_t>* operator->() {
+    robin_hood::pair<const Kmer, kmercount_t>* operator->() {
         if(curr_table == table_end) {
             return nullptr;
         }
@@ -155,8 +156,8 @@ public:
     KmerCounter& countKmersFiles(std::vector<std::string> const& files);
     KmerCounter& countKmers(std::string const& str);
 
-    uint16_t query(char const* qry) const;
-    uint16_t query(Kmer const& qry) const;
+    kmercount_t query(char const* qry) const;
+    kmercount_t query(Kmer const& qry) const;
 
     uint64_t getNumKmers() const {
         return num_kmers.load();
@@ -165,6 +166,12 @@ public:
     uint64_t getUniqueKmers() const {
         return num_unique.load();
     }
+
+    kmercount_t getMaxCount() const {
+        return max_count.load();
+    }
+
+    std::vector<kmercount_t> getFrequencySpectrum();
 
     template<typename Archive>
     void save(Archive& ar) const;
@@ -194,6 +201,7 @@ private:
     std::vector<std::mutex> table_locks;
     std::atomic<uint64_t> num_kmers;
     std::atomic<uint64_t> num_unique;
+    std::atomic<kmercount_t> max_count;
 
     std::atomic<bool> finished_reading;
     std::mutex queue_lock;

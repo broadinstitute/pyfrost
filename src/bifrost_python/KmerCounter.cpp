@@ -20,7 +20,7 @@ KmerCounter::KmerCounter(size_t _k, size_t _g, bool _canonical, size_t _num_thre
     size_t _read_block_size) :
     k(_k), g(_g), canonical(_canonical), num_threads(_num_threads), read_block_size(_read_block_size),
     tables(1 << _table_bits), table_locks(1 << _table_bits),
-    num_kmers(0), num_unique(0), finished_reading(false)
+    num_kmers(0), num_unique(0), max_count(0), finished_reading(false)
 {
     setKmerGmer();
 }
@@ -28,7 +28,7 @@ KmerCounter::KmerCounter(size_t _k, size_t _g, bool _canonical, size_t _num_thre
 KmerCounter::KmerCounter(KmerCounter const& o) :
     k(o.k), g(o.g), canonical(o.canonical), num_threads(o.num_threads), read_block_size(o.read_block_size),
     tables(o.tables), table_locks(o.tables.size()), num_kmers(o.num_kmers.load()), num_unique(o.num_unique.load()),
-    finished_reading(o.finished_reading.load())
+    max_count(o.max_count.load()), finished_reading(o.finished_reading.load())
 {
     setKmerGmer();
 }
@@ -36,7 +36,7 @@ KmerCounter::KmerCounter(KmerCounter const& o) :
 KmerCounter::KmerCounter(KmerCounter&& o) :
     k(o.k), g(o.g), canonical(o.canonical), num_threads(o.num_threads), read_block_size(o.read_block_size),
     tables(std::move(o.tables)), table_locks(o.tables.size()), num_kmers(o.num_kmers.load()),
-    num_unique(o.num_unique.load()), finished_reading(o.finished_reading.load())
+    num_unique(o.num_unique.load()), max_count(o.max_count.load()), finished_reading(o.finished_reading.load())
 {
     setKmerGmer();
 }
@@ -171,7 +171,7 @@ void KmerCounter::counterThread()
                 size_t table_ix = minimizer_hash % tables.size();
 
                 unique_lock<mutex> table_guard(table_locks[table_ix]);
-                uint16_t curr_count = 0;
+                kmercount_t curr_count = 0;
                 if(tables[table_ix].contains(kmer)) {
                     curr_count = tables[table_ix][kmer];
                 } else {
@@ -184,13 +184,18 @@ void KmerCounter::counterThread()
                 }
 
                 tables[table_ix].insert_or_assign(kmer, curr_count);
+
+                if(curr_count > max_count.load()) {
+                    max_count = curr_count;
+                }
+
                 table_guard.unlock();
             }
         }
     }
 }
 
-uint16_t KmerCounter::query(const Kmer &qry) const
+kmercount_t KmerCounter::query(const Kmer &qry) const
 {
     Kmer kmer = canonical ? qry.rep() : qry;
     string kmer_str = kmer.toString();
@@ -209,13 +214,28 @@ uint16_t KmerCounter::query(const Kmer &qry) const
     return 0;
 }
 
-uint16_t KmerCounter::query(char const* qry) const {
+kmercount_t KmerCounter::query(char const* qry) const
+{
     return query(Kmer(qry));
+}
+
+
+std::vector<kmercount_t> KmerCounter::getFrequencySpectrum()
+{
+    std::vector<kmercount_t> spectrum(getMaxCount());
+
+    for(auto tuple : *this) {
+        auto count = tuple.second;
+
+        ++spectrum[count-1];
+    }
+
+    return spectrum;
 }
 
 template<typename Archive>
 void KmerCounter::save(Archive& ar) const {
-    ar(k, g, canonical, tables, num_kmers.load(), num_unique.load());
+    ar(k, g, canonical, tables, num_kmers.load(), num_unique.load(), max_count.load());
 }
 
 template<typename Archive>
@@ -225,10 +245,12 @@ void KmerCounter::load(Archive& ar) {
 
     size_t _num_kmers = 0;
     size_t _num_unique = 0;
-    ar(tables, _num_kmers, _num_unique);
+    kmercount_t _max_count = 0;
+    ar(tables, _num_kmers, _num_unique, _max_count);
 
     num_kmers = _num_kmers;
     num_unique = _num_unique;
+    max_count = _max_count;
 
     table_locks = vector<mutex>(tables.size());
 }
@@ -244,6 +266,10 @@ void define_KmerCounter(py::module& m) {
         .def("query", py::overload_cast<Kmer const&>(&KmerCounter::query, py::const_))
         .def("query", py::overload_cast<char const*>(&KmerCounter::query, py::const_))
 
+        .def("frequency_spectrum", [] (KmerCounter& self) {
+            return as_pyarray<std::vector<kmercount_t>>(std::move(self.getFrequencySpectrum()));
+        })
+
         .def("__getitem__", py::overload_cast<Kmer const&>(&KmerCounter::query, py::const_), py::is_operator())
         .def("__getitem__", py::overload_cast<char const*>(&KmerCounter::query, py::const_), py::is_operator())
 
@@ -258,8 +284,10 @@ void define_KmerCounter(py::module& m) {
         .def("__len__", [] (KmerCounter const& self) {
             return self.getUniqueKmers();
         })
+
         .def_property_readonly("num_kmers", &KmerCounter::getNumKmers)
         .def_property_readonly("num_unique", &KmerCounter::getUniqueKmers)
+        .def_property_readonly("max_count", &KmerCounter::getMaxCount)
 
         .def("save", [] (KmerCounter& self, string const& filepath) {
             std::ofstream ofile(filepath);
