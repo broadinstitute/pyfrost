@@ -54,6 +54,7 @@ public:
 
     Kmer unitigHead() const;
     Kmer unitigTail() const;
+    Kmer unitigRepresentative() const;
 
     inline PyfrostColoredUMap mappingToFullUnitig() const {
         return unitig.mappingToFullUnitig();
@@ -63,8 +64,14 @@ public:
     UnitigDataKeyIterator end() const;
 
 private:
-    inline py::dict& getDataDict() const {
-        return unitig.getData()->getData(unitig)->getDict();
+    py::dict& getDataDict() const {
+        auto data_ptr = unitig.getData()->getData(unitig);
+
+        if(data_ptr == nullptr) {
+            throw std::runtime_error("Could not obtain unitig data? nullptr");
+        }
+
+        return data_ptr->getDict();
     }
 
     UnitigMetaKeys getMetaKey(std::string const& key) const;

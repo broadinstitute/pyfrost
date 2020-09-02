@@ -21,6 +21,8 @@ void define_UnitigDataProxy(py::module& m) {
         .def("twin", [] (UnitigDataProxy const& self) {
             return self.unitigTail().twin();
         })
+        .def("rep", py::overload_cast<>(&UnitigDataProxy::unitigRepresentative, py::const_),
+            "Return the head k-mer of this unitig in forward strand")
         .def("full_node", [] (UnitigDataProxy const& self) {
             return UnitigDataProxy(self.mappingToFullUnitig());
         });
@@ -59,7 +61,7 @@ py::object UnitigDataProxy::getData(std::string const& key) const {
         case UnitigMetaKeys::POS:
             return py::cast(unitig.strand
                 ? unitig.dist
-                : (unitig.size - unitig.getGraph()->getK() - unitig.dist));
+                : unitig.dist > 0 ? (unitig.size - unitig.getGraph()->getK() - unitig.dist) : 0);
 
         case UnitigMetaKeys::STRAND:
             return py::cast(unitig.strand ? Strand::FORWARD : Strand::REVERSE);
@@ -154,6 +156,10 @@ Kmer UnitigDataProxy::unitigHead() const {
 
 Kmer UnitigDataProxy::unitigTail() const {
     return unitig.strand ? unitig.getUnitigTail() : unitig.getUnitigHead().twin();
+}
+
+Kmer UnitigDataProxy::unitigRepresentative() const {
+    return unitig.getUnitigHead();
 }
 
 UnitigDataKeyIterator UnitigDataProxy::begin() const {
