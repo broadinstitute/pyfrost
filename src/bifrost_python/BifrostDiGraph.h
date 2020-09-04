@@ -110,6 +110,10 @@ public:
     }
 
     inline UnitigDataProxy findUnitig(char const* kmer, bool extremities_only=false) {
+        if(std::strlen(kmer) != Kmer::k) {
+            throw py::value_error("Given k-mer is is not of length k!");
+        }
+
         return findUnitig(Kmer(kmer), extremities_only);
     }
 
