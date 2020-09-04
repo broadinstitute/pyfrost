@@ -21,7 +21,6 @@ Kmer to_kmer(py::handle const& obj) {
 
     Kmer kmer;
     kmer.set_empty();
-    //kmer.set_deleted();
 
     return kmer;
 }
@@ -70,7 +69,7 @@ void define_Kmer(py::module &m) {
         .def(py::init<Kmer const&>())
         .def(py::init<char const*>())
 
-            // Operator overloading
+        // Operator overloading
         .def(py::self == py::self)
         .def(py::self != py::self)
         .def(py::self < py::self)
@@ -105,11 +104,23 @@ void define_Kmer(py::module &m) {
         .def("__hash__", [] (Kmer const& self) { return self.hash(); })
         .def("hash", &Kmer::hash, "Get the hash value for this k-mer", py::arg("seed") = 0);
 
+    /**
+     * Class masking as a function, can't use a single function here
+     * because we need to keep the string to k-merize in memory while
+     * iterating over it.
+     */
+    py::class_<Kmerizer>(m, "kmerize_str")
+        .def(py::init<std::string const&>())
+        .def("__iter__", [] (Kmerizer const& self) {
+            return py::make_key_iterator(self.begin(), self.end());
+        });
+
 
     // two bits are reserved for k-mer metadata
     m.attr("max_k") = MAX_KMER_SIZE - 1;
 
-    m.def("set_k", &Kmer::set_k, "Set the k-mer size for all `Kmer` objects. Only use at the beginning of the program!");
+    m.def("set_k", &Kmer::set_k,
+          "Set the k-mer size for all `Kmer` objects. Only use at the beginning of the program!");
 }
 
 }

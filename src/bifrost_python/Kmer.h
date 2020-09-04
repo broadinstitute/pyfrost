@@ -41,6 +41,25 @@ bool is_kmer_empty(Kmer const& kmer);
 
 void define_Kmer(py::module &m);
 
+
+class Kmerizer {
+public:
+    explicit Kmerizer(std::string const& _str) : str(_str) { }
+    Kmerizer(Kmerizer const& o) = default;
+    Kmerizer(Kmerizer&& o) = default;
+
+    KmerIterator begin() const {
+        return KmerIterator(str.c_str());
+    }
+
+    KmerIterator end() const {
+        return KmerIterator();
+    }
+
+private:
+    std::string str;
+};
+
 }
 
 #endif //PYFROST_KMER_H
