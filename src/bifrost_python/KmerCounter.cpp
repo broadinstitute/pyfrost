@@ -27,7 +27,7 @@ KmerCounter::KmerCounter(size_t _k, size_t _g, bool _canonical, size_t _num_thre
 
 KmerCounter::KmerCounter(KmerCounter const& o) :
     k(o.k), g(o.g), canonical(o.canonical), num_threads(o.num_threads), read_block_size(o.read_block_size),
-    tables(o.tables), table_locks(o.tables.size()), num_kmers(o.num_kmers.load()), num_unique(o.num_unique.load()),
+    tables(o.tables), table_locks(tables.size()), num_kmers(o.num_kmers.load()), num_unique(o.num_unique.load()),
     max_count(o.max_count.load()), finished_reading(o.finished_reading.load())
 {
     setKmerGmer();
@@ -35,13 +35,20 @@ KmerCounter::KmerCounter(KmerCounter const& o) :
 
 KmerCounter::KmerCounter(KmerCounter&& o) :
     k(o.k), g(o.g), canonical(o.canonical), num_threads(o.num_threads), read_block_size(o.read_block_size),
-    tables(std::move(o.tables)), table_locks(o.tables.size()), num_kmers(o.num_kmers.load()),
+    tables(std::move(o.tables)), table_locks(tables.size()), num_kmers(o.num_kmers.load()),
     num_unique(o.num_unique.load()), max_count(o.max_count.load()), finished_reading(o.finished_reading.load())
 {
     setKmerGmer();
 }
 
 void KmerCounter::setKmerGmer() {
+    if(k >= MAX_KMER_SIZE) {
+        const uint16_t max_kmer_size = MAX_KMER_SIZE - 1;
+        std::stringstream error_msg;
+        error_msg << "K-mer size is too big! Max k-mer size: " << max_kmer_size;
+        throw std::out_of_range(error_msg.str());
+    }
+
     Kmer::set_k(k);
 
     if (g == 0) {
