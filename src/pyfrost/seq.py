@@ -5,9 +5,10 @@
 
 from typing import List
 
-from bifrost_python import reverse_complement, Kmer, Strand, set_k
+from bifrost_python import reverse_complement, Kmer, kmerize_str, Strand, set_k, max_k
 
-__all__ = ['reverse_complement', 'Kmer', 'Strand', 'set_k', 'path_sequence', 'path_nucleotide_length']
+__all__ = ['reverse_complement', 'Kmer', 'kmerize_str', 'Strand', 'set_k', 'max_k', 'path_sequence',
+           'path_nucleotide_length']
 
 
 def path_sequence(g: 'bifrost_python.BifrostDiGraph', path: List[Kmer]) -> str:

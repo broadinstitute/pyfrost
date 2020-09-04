@@ -1,6 +1,6 @@
 import pytest  # noqa
 
-from pyfrost import Kmer, path_sequence, path_nucleotide_length
+from pyfrost import Kmer, path_sequence, path_nucleotide_length, kmerize_str, set_k
 
 
 def test_build_sequence(mccortex):
@@ -17,3 +17,21 @@ def test_compute_length(mccortex):
 
     path = [Kmer('ACTGA'), Kmer('TCGAT'), Kmer('CGATG')]
     assert path_nucleotide_length(g, path) == 14
+
+
+def test_kmerize_str():
+    set_k(5)
+
+    kmers = list(kmerize_str("ACTGATTTCGATGC"))
+    assert kmers == [
+        Kmer('ACTGA'),
+        Kmer('CTGAT'),
+        Kmer('TGATT'),
+        Kmer('GATTT'),
+        Kmer('ATTTC'),
+        Kmer('TTTCG'),
+        Kmer('TTCGA'),
+        Kmer('TCGAT'),
+        Kmer('CGATG'),
+        Kmer('GATGC')
+    ]
