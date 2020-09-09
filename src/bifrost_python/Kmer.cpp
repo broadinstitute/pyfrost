@@ -113,7 +113,7 @@ void define_Kmer(py::module &m) {
         .def(py::init<std::string const&>())
         .def("__iter__", [] (Kmerizer const& self) {
             return py::make_key_iterator(self.begin(), self.end());
-        });
+        }, py::keep_alive<0, 1>());
 
 
     // two bits are reserved for k-mer metadata
