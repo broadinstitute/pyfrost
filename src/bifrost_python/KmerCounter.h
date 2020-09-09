@@ -147,7 +147,7 @@ private:
 
 class KmerCounter {
 public:
-    KmerCounter(size_t k=31, size_t g=0, bool canonical=true, size_t num_threads=2, size_t table_bits=10,
+    KmerCounter(size_t k=DEFAULT_K, size_t g=0, bool canonical=true, size_t num_threads=2, size_t table_bits=10,
         size_t read_block_size=(1 << 20));
 
     KmerCounter(KmerCounter const& o);

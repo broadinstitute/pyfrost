@@ -42,6 +42,10 @@ KmerCounter::KmerCounter(KmerCounter&& o) :
 }
 
 void KmerCounter::setKmerGmer() {
+    if(k <= 2) {
+        throw std::out_of_range("k-mer size needs to be at least 3");
+    }
+
     if(k >= MAX_KMER_SIZE) {
         const uint16_t max_kmer_size = MAX_KMER_SIZE - 1;
         std::stringstream error_msg;
@@ -49,9 +53,11 @@ void KmerCounter::setKmerGmer() {
         throw std::out_of_range(error_msg.str());
     }
 
-    Kmer::set_k(k);
+    if(g > (k - 2)) {
+        throw std::out_of_range("Minimizer length cannot exceed k-2");
+    }
 
-    if (g == 0) {
+    if(g == 0) {
         if(k >= 15) {
             g = k - DEFAULT_G_DEC1;
         } else if(k >= 7) {
@@ -61,6 +67,7 @@ void KmerCounter::setKmerGmer() {
         }
     }
 
+    Kmer::set_k(k);
     Minimizer::set_g(g);
 }
 
