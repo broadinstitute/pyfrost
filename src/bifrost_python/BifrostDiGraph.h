@@ -148,6 +148,7 @@ public:
 private:
     void populateAttrs() {
         attr["k"] = dbg.getK();
+        attr["g"] = dbg.getG();
         attr["color_names"] = dbg.getData()->getColorNames();
     }
 
