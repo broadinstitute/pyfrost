@@ -68,7 +68,11 @@ private:
         auto data_ptr = unitig.getData()->getData(unitig);
 
         if(data_ptr == nullptr) {
-            throw std::runtime_error("Could not obtain unitig data? nullptr");
+            stringstream error_msg;
+            error_msg << "Could not obtain unitig data? nullptr. Head: ";
+            error_msg << unitig.getUnitigHead().toString();
+            error_msg << " isEmpty: " << unitig.isEmpty;
+            throw std::runtime_error(error_msg.str());
         }
 
         return data_ptr->getDict();
