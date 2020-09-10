@@ -234,9 +234,9 @@ kmercount_t KmerCounter::query(char const* qry) const
 }
 
 
-std::vector<kmercount_t> KmerCounter::getFrequencySpectrum()
+std::vector<uint64_t> KmerCounter::getFrequencySpectrum()
 {
-    std::vector<kmercount_t> spectrum(getMaxCount());
+    std::vector<uint64_t> spectrum(getMaxCount());
 
     for(auto tuple : *this) {
         auto count = tuple.second;
@@ -281,7 +281,7 @@ void define_KmerCounter(py::module& m) {
         .def("query", py::overload_cast<char const*>(&KmerCounter::query, py::const_))
 
         .def("frequency_spectrum", [] (KmerCounter& self) {
-            return as_pyarray<std::vector<kmercount_t>>(std::move(self.getFrequencySpectrum()));
+            return as_pyarray<std::vector<uint64_t>>(std::move(self.getFrequencySpectrum()));
         })
 
         .def("__getitem__", py::overload_cast<Kmer const&>(&KmerCounter::query, py::const_), py::is_operator())
