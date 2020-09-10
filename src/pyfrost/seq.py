@@ -3,15 +3,15 @@
 =====================================================================
 """
 
-from typing import List
+from typing import List, Iterable
 
 from bifrost_python import reverse_complement, Kmer, kmerize_str, Strand, set_k, max_k
 
 __all__ = ['reverse_complement', 'Kmer', 'kmerize_str', 'Strand', 'set_k', 'max_k', 'path_sequence',
-           'path_nucleotide_length']
+           'path_nucleotide_length', 'path_kmers']
 
 
-def path_sequence(g: 'bifrost_python.BifrostDiGraph', path: List[Kmer]) -> str:
+def path_sequence(g: 'bifrost_python.BifrostDiGraph', path: Iterable[Kmer]) -> str:
     """Build the DNA sequence that is spelled by the given path."""
 
     if not path:
@@ -34,7 +34,25 @@ def path_sequence(g: 'bifrost_python.BifrostDiGraph', path: List[Kmer]) -> str:
     return "".join(seqs)
 
 
-def path_nucleotide_length(g: 'bifrost_python.BifrostDiGraph', path: List[Kmer]) -> int:
+def path_kmers(g: 'bifrost_python.BifrostDiGraph', path: Iterable[Kmer]) -> Iterable[Kmer]:
+    if not path:
+        return
+
+    node_iter = iter(path)
+    start = next(node_iter)
+    yield from kmerize_str(g.nodes[start]['unitig_sequence'])
+
+    prev = start
+    for node in node_iter:
+        if (prev, node) not in g.edges:
+            raise ValueError(f"Invalid path specified, ({prev}, {node}) is not an edge.")
+
+        yield from kmerize_str(g.nodes[node]['unitig_sequence'])
+
+        prev = node
+
+
+def path_nucleotide_length(g: 'bifrost_python.BifrostDiGraph', path: Iterable[Kmer]) -> int:
     """Compute the length of a path in nucleotides."""
 
     if not path:
