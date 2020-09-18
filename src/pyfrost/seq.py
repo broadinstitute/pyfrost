@@ -3,12 +3,12 @@
 =====================================================================
 """
 
-from typing import List, Iterable
+from typing import List, Iterable, Sequence
 
 from bifrost_python import reverse_complement, Kmer, kmerize_str, Strand, set_k, max_k
 
 __all__ = ['reverse_complement', 'Kmer', 'kmerize_str', 'Strand', 'set_k', 'max_k', 'path_sequence',
-           'path_nucleotide_length', 'path_kmers']
+           'path_nucleotide_length', 'path_kmers', 'path_rev_compl']
 
 
 def path_sequence(g: 'bifrost_python.BifrostDiGraph', path: Iterable[Kmer]) -> str:
@@ -73,4 +73,10 @@ def path_nucleotide_length(g: 'bifrost_python.BifrostDiGraph', path: Iterable[Km
         prev = n
 
     return length
+
+
+def path_rev_compl(g: 'bifrost_python.BifrostDiGraph', path: Sequence[Kmer]):
+    """Yield the reverse complement of the given path"""
+
+    yield from (g.nodes[kmer].twin() for kmer in reversed(path))
 
