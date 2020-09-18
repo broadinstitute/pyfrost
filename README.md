@@ -7,11 +7,23 @@ A Python library for creating and analyzing compacted colored de Bruijn Graphs p
 This library is still in an early development stage, and the API is still subject to change. Furthermore, not all
 functions from NetworkX are implemented yet.
 
+Project Status
+--------------
+
+A lot of functionality works, and with the current library you can fully navigate any Bifrost graph and access any
+metadata (e.g. colors). A limitation, however, is that while our `BifrostDiGraph` class mimics a lot of NetworkX's
+original `DiGraph` class, it's not a proper subclass and has different internal data structures, and this prevents certain
+NetworkX functions from working properly (i.e. copying a subgraph, node/edge filter views). Most navigational 
+algorithms work correctly.
+
+A refactor is planned to make our `BifrostDiGraph` a proper subgraph of `networkx.DiGraph`, but that's not finished yet.
+
 Requirements
 ------------
 
 * Python >= 3.6
 * C++14 compatible compiler (GCC >5, Clang >3.4)
+* CMake >= 3.11
 
 Installation
 ------------
