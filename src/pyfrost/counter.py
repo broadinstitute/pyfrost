@@ -1,3 +1,3 @@
-from bifrost_python import KmerCounter
+from pyfrostcpp import KmerCounter
 
 __all__ = ['KmerCounter']

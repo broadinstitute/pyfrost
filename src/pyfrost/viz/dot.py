@@ -4,6 +4,8 @@
 
 """
 
+from __future__ import annotations
+
 import pydot
 
 from pyfrost.graph import BifrostDiGraph

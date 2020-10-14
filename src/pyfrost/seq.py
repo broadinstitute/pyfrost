@@ -3,15 +3,16 @@
 =====================================================================
 """
 
-from typing import List, Iterable, Sequence
+from __future__ import annotations
+from typing import Iterable, Sequence
 
-from bifrost_python import reverse_complement, Kmer, kmerize_str, Strand, set_k, max_k
+from pyfrostcpp import reverse_complement, Kmer, kmerize_str, Strand, set_k, max_k
 
 __all__ = ['reverse_complement', 'Kmer', 'kmerize_str', 'Strand', 'set_k', 'max_k', 'path_sequence',
            'path_nucleotide_length', 'path_kmers', 'path_rev_compl']
 
 
-def path_sequence(g: 'bifrost_python.BifrostDiGraph', path: Iterable[Kmer]) -> str:
+def path_sequence(g: pyfrostcpp.BifrostDiGraph, path: Iterable[Kmer]) -> str:
     """Build the DNA sequence that is spelled by the given path."""
 
     if not path:
@@ -34,7 +35,7 @@ def path_sequence(g: 'bifrost_python.BifrostDiGraph', path: Iterable[Kmer]) -> s
     return "".join(seqs)
 
 
-def path_kmers(g: 'bifrost_python.BifrostDiGraph', path: Iterable[Kmer]) -> Iterable[Kmer]:
+def path_kmers(g: pyfrostcpp.BifrostDiGraph, path: Iterable[Kmer]) -> Iterable[Kmer]:
     if not path:
         return
 
@@ -52,7 +53,7 @@ def path_kmers(g: 'bifrost_python.BifrostDiGraph', path: Iterable[Kmer]) -> Iter
         prev = node
 
 
-def path_nucleotide_length(g: 'bifrost_python.BifrostDiGraph', path: Iterable[Kmer]) -> int:
+def path_nucleotide_length(g: pyfrostcpp.BifrostDiGraph, path: Iterable[Kmer]) -> int:
     """Compute the length of a path in nucleotides."""
 
     if not path:
@@ -75,7 +76,7 @@ def path_nucleotide_length(g: 'bifrost_python.BifrostDiGraph', path: Iterable[Km
     return length
 
 
-def path_rev_compl(g: 'bifrost_python.BifrostDiGraph', path: Sequence[Kmer]):
+def path_rev_compl(g: 'pyfrostcpp.BifrostDiGraph', path: Sequence[Kmer]):
     """Yield the reverse complement of the given path"""
 
     yield from (g.nodes[kmer].twin() for kmer in reversed(path))

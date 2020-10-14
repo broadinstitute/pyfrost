@@ -1,1 +1,1 @@
-add_subdirectory(bifrost_python)
+add_subdirectory(pyfrostcpp)

@@ -1,6 +1,6 @@
 #include <pybind11/pybind11.h>
-#include "Pyfrost.h"
-#include "UnitigDataProxy.h"
+#include "pyfrost.h"
+#include "NodeDataDict.h"
 
 #ifndef PYFROST_KMERONUNITIG_H
 #define PYFROST_KMERONUNITIG_H
@@ -28,7 +28,7 @@ void define_UnitigMapping(py::module& m) {
 
         .def_property_readonly("data", [] (PyfrostColoredUMap const& self) {
             // Creating a new object every time `data` is accessed for now, maybe something smarter in the future
-            return UnitigDataProxy(self);
+            return NodeDataDict(self);
         }, py::return_value_policy::move)
 
         .def("__str__", &PyfrostColoredUMap::mappedSequenceToString)
@@ -65,7 +65,7 @@ void define_UnitigMapping(py::module& m) {
             }
 
             repr << " MapPos=" << self.dist;
-            repr << " MapLen=" << UnitigDataProxy(self).mappedSequenceLength();
+            repr << " MapLen=" << NodeDataDict(self).mappedSequenceLength();
             repr << " UnitigSize=" << self.size;
             repr << " Strand=" << (self.strand ? "forward" : "reverse") << ">";
 

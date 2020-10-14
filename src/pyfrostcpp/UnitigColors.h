@@ -1,7 +1,7 @@
 #ifndef PYFROST_UNITIGCOLORS_H
 #define PYFROST_UNITIGCOLORS_H
 
-#include "Pyfrost.h"
+#include "pyfrost.h"
 
 namespace py = pybind11;
 

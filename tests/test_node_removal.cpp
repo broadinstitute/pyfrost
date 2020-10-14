@@ -15,8 +15,8 @@ TEST_CASE("Test node/color removal", "[node_color_removal]") {
 
     for(auto const& um : ccdbg) {
         auto colorset = um.getData()->getUnitigColors(um);
-
         REQUIRE(colorset != nullptr);
+
         int num_colors = 0;
         for(auto it = colorset->begin(um); it != colorset->end(); ++it) {
             ++num_colors;
@@ -43,7 +43,6 @@ TEST_CASE("Test node/color removal", "[node_color_removal]") {
         um.dist = 0;
 
         auto colorset = um.getData()->getUnitigColors(um);
-
         colorset->remove(um, SAMPLE_COLOR_ID);
 
         if(colorset->size(um) == 0) {
@@ -64,22 +63,25 @@ TEST_CASE("Test node/color removal", "[node_color_removal]") {
         }
 
         um.strand = true;
-        um.dist = 0;
-
         ccdbg.remove(um);
     }
 
+    int num_unitigs_without_colors = 0;
     for(auto const& um : ccdbg) {
         auto colorset = um.getData()->getUnitigColors(um);
-
         REQUIRE(colorset != nullptr);
+
         int num_colors = 0;
         for(auto it = colorset->begin(um); it != colorset->end(); ++it) {
             ++num_colors;
         }
 
-        REQUIRE(num_colors > 0);
+        if(num_colors == 0) {
+            ++num_unitigs_without_colors;
+        }
     }
+
+    REQUIRE(num_unitigs_without_colors == 0);
 
     ccdbg.write("cleaned");
 
@@ -88,7 +90,6 @@ TEST_CASE("Test node/color removal", "[node_color_removal]") {
 
     for(auto const& um : ccdbg) {
         auto colorset = um.getData()->getUnitigColors(um);
-
         REQUIRE(colorset != nullptr);
 
         int num_colors = 0;

@@ -9,7 +9,8 @@ namespace py = pybind11;
 namespace pyfrost {
 
 /**
- * Support for setting unitig data as a python dict
+ * Custom unitig data class for use with Bifrost's `ColoredCDBG`, Associates a python dict with every unitig in the
+ * graph.
  */
 class UnitigDataDict : public CCDBG_Data_t<UnitigDataDict> {
 public:

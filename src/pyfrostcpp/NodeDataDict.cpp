@@ -1,38 +1,38 @@
-#include "UnitigDataProxy.h"
+#include "NodeDataDict.h"
 #include "UnitigColors.h"
 
 namespace pyfrost {
 
-void define_UnitigDataProxy(py::module& m) {
+void define_NodeDataDict(py::module& m) {
 
-    auto handle = py::class_<UnitigDataProxy>(m, "UnitigDataProxy")
+    auto handle = py::class_<NodeDataDict>(m, "NodeDataDict")
         // Dict like interface
-        .def("__getitem__", &UnitigDataProxy::getData, py::is_operator())
-        .def("__setitem__", &UnitigDataProxy::setData, py::is_operator())
-        .def("__delitem__", &UnitigDataProxy::delData, py::is_operator())
-        .def("__contains__", &UnitigDataProxy::contains, py::is_operator())
-        .def("__len__", &UnitigDataProxy::size)
-        .def("__iter__", [] (UnitigDataProxy const& self) {
+        .def("__getitem__", &NodeDataDict::getData, py::is_operator())
+        .def("__setitem__", &NodeDataDict::setData, py::is_operator())
+        .def("__delitem__", &NodeDataDict::delData, py::is_operator())
+        .def("__contains__", &NodeDataDict::contains, py::is_operator())
+        .def("__len__", &NodeDataDict::size)
+        .def("__iter__", [](NodeDataDict const& self) {
             return py::make_iterator(self.begin(), self.end());
         }, py::keep_alive<0, 1>())
 
-        .def("__str__", &UnitigDataProxy::mappedSequence)
+        .def("__str__", &NodeDataDict::mappedSequence)
 
-        .def("twin", [] (UnitigDataProxy const& self) {
+        .def("twin", [](NodeDataDict const& self) {
             return self.unitigTail().twin();
         })
-        .def("rep", py::overload_cast<>(&UnitigDataProxy::unitigRepresentative, py::const_),
+        .def("rep", py::overload_cast<>(&NodeDataDict::unitigRepresentative, py::const_),
             "Return the head k-mer of this unitig in forward strand")
-        .def("full_node", [] (UnitigDataProxy const& self) {
-            return UnitigDataProxy(self.mappingToFullUnitig());
+        .def("full_node", [](NodeDataDict const& self) {
+            return NodeDataDict(self.mappingToFullUnitig());
         });
 
-    // Hack to let our UnitigDataProxy inherit from the collections.abc.MutableMapping Python mixin
+    // Hack to let our NodeDataDict inherit from the collections.abc.MutableMapping Python mixin
     auto MutableMapping = py::module::import("collections.abc").attr("MutableMapping");
     handle.attr("__bases__") = py::make_tuple(MutableMapping).attr("__add__")(handle.attr("__bases__"));
 }
 
-const std::unordered_map<std::string, UnitigMetaKeys> UnitigDataProxy::hardcoded_keys = {
+const std::unordered_map<std::string, UnitigMetaKeys> NodeDataDict::hardcoded_keys = {
     {"length",          UnitigMetaKeys::LENGTH},
     {"pos",             UnitigMetaKeys::POS},
     {"strand",          UnitigMetaKeys::STRAND},
@@ -45,7 +45,7 @@ const std::unordered_map<std::string, UnitigMetaKeys> UnitigDataProxy::hardcoded
     {"colors",          UnitigMetaKeys::COLORS},
 };
 
-bool UnitigDataProxy::contains(const std::string &key) const {
+bool NodeDataDict::contains(const std::string &key) const {
     if(getMetaKey(key) == UnitigMetaKeys::NONE) {
         return getDataDict().contains(key.c_str());
     }
@@ -53,7 +53,7 @@ bool UnitigDataProxy::contains(const std::string &key) const {
     return true;
 }
 
-py::object UnitigDataProxy::getData(std::string const& key) const {
+py::object NodeDataDict::getData(std::string const& key) const {
     switch(getMetaKey(key)) {
         case UnitigMetaKeys::LENGTH:
             return py::cast(unitig.len);
@@ -112,7 +112,7 @@ py::object UnitigDataProxy::getData(std::string const& key) const {
     }
 }
 
-void UnitigDataProxy::setData(std::string const& key, py::object const& value) {
+void NodeDataDict::setData(std::string const& key, py::object const& value) {
     if(getMetaKey(key) != UnitigMetaKeys::NONE) {
         throw py::key_error("Key '" + key + "' is read only unitig metadata.");
     }
@@ -121,7 +121,7 @@ void UnitigDataProxy::setData(std::string const& key, py::object const& value) {
     data_dict[key.c_str()] = value;
 }
 
-void UnitigDataProxy::delData(const py::str &key) {
+void NodeDataDict::delData(const py::str &key) {
     if(getMetaKey(key) != UnitigMetaKeys::NONE) {
         throw py::key_error("Key '" + key.cast<std::string>() + "' is read only unitig metadata.");
     }
@@ -130,52 +130,52 @@ void UnitigDataProxy::delData(const py::str &key) {
     PyDict_DelItem(data_dict.ptr(), key.ptr());
 }
 
-size_t UnitigDataProxy::size() const {
+size_t NodeDataDict::size() const {
     return hardcoded_keys.size() + getDataDict().size();
 }
 
-std::string UnitigDataProxy::mappedSequence() const {
+std::string NodeDataDict::mappedSequence() const {
     return unitig.mappedSequenceToString();
 }
 
-size_t UnitigDataProxy::mappedSequenceLength() const {
+size_t NodeDataDict::mappedSequenceLength() const {
     return unitig.getGraph()->getK() + unitig.len - 1;
 }
 
-std::string UnitigDataProxy::unitigSequence() const {
+std::string NodeDataDict::unitigSequence() const {
     return unitig.strand ? unitig.referenceUnitigToString() : reverse_complement(unitig.referenceUnitigToString());
 }
 
-size_t UnitigDataProxy::unitigLength() const {
+size_t NodeDataDict::unitigLength() const {
     return unitig.size - unitig.getGraph()->getK() + 1;
 }
 
-Kmer UnitigDataProxy::unitigHead() const {
+Kmer NodeDataDict::unitigHead() const {
     return unitig.strand ? unitig.getUnitigHead() : unitig.getUnitigTail().twin();
 }
 
-Kmer UnitigDataProxy::unitigTail() const {
+Kmer NodeDataDict::unitigTail() const {
     return unitig.strand ? unitig.getUnitigTail() : unitig.getUnitigHead().twin();
 }
 
-Kmer UnitigDataProxy::unitigRepresentative() const {
+Kmer NodeDataDict::unitigRepresentative() const {
     return unitig.getUnitigHead();
 }
 
-UnitigDataKeyIterator UnitigDataProxy::begin() const {
+UnitigDataKeyIterator NodeDataDict::begin() const {
     auto& data_dict = getDataDict();
 
     return {hardcoded_keys.cbegin(), hardcoded_keys.cend(),
         data_dict.begin()};
 }
 
-UnitigDataKeyIterator UnitigDataProxy::end() const {
+UnitigDataKeyIterator NodeDataDict::end() const {
     auto& data_dict = getDataDict();
     return {hardcoded_keys.cend(), hardcoded_keys.cend(),
             data_dict.end()};
 }
 
-UnitigMetaKeys UnitigDataProxy::getMetaKey(std::string const &key) const {
+UnitigMetaKeys NodeDataDict::getMetaKey(std::string const &key) const {
     auto key_enum = hardcoded_keys.find(key);
     if(key_enum != hardcoded_keys.end()) {
         return key_enum->second;

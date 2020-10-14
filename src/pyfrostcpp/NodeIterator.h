@@ -1,17 +1,13 @@
 #ifndef PYFROST_NODEITERATOR_H
 #define PYFROST_NODEITERATOR_H
 
-#include "Pyfrost.h"
+#include "pyfrost.h"
 #include "Kmer.h"
-#include "UnitigDataProxy.h"
+#include "NodeDataDict.h"
 
 std::ostream& operator<<(std::ostream& o, pyfrost::PyfrostColoredUMap const& u);
 
 namespace pyfrost {
-
-// Forward declaration
-template<typename T>
-class NodeWithDataIterator;
 
 /**
  * Iterate over a collection of nodes (unitigs), where each node is represented by its head Kmer.
@@ -22,8 +18,6 @@ class NodeWithDataIterator;
 template<typename T>
 class NodeIterator {
 public:
-    friend class NodeWithDataIterator<T>;
-
     using iterator_category = std::input_iterator_tag;
     using value_type = Kmer;
     using difference_type = std::ptrdiff_t;
@@ -198,94 +192,6 @@ public:
     }
 };
 
-
-/**
- * This class wraps a `NodeIterator`, and adds a node data at dereference.
- *
- * There are multiple options available for iteration:
- *
- * - Return just the node: node
- * - Return a tuple with the full data dictionary: (node, full_data_dict)
- * - Return a tuple with a specific key from the data dict: (node, value_for_given_key)
- *
- * If using the last option, and the given key doesn't exist in the data dictionary, the default value can be set too
- * (defaults to None).
- */
-template <typename T>
-class NodeWithDataIterator {
-public:
-    using iterator_category = std::input_iterator_tag;
-    using value_type = py::object;
-    using difference_type = std::ptrdiff_t;
-    using pointer = value_type*;
-    using reference = value_type&;
-
-    explicit NodeWithDataIterator(NodeIterator<T> const& to_wrap)
-        : wrapped(to_wrap), default_value(py::none()) { }
-
-    NodeWithDataIterator(NodeIterator<T> const& to_wrap, bool data)
-        : wrapped(to_wrap), data(data), data_key(py::none()), default_value(py::none()) { }
-
-    NodeWithDataIterator(NodeIterator<T> const& to_wrap, bool data, py::object data_key)
-        : wrapped(to_wrap), data(data), data_key(std::move(data_key)) { }
-
-    NodeWithDataIterator(NodeIterator<T> const& to_wrap, bool data, py::object data_key,
-                         py::object default_value)
-        : wrapped(to_wrap), data(data), data_key(std::move(data_key)), default_value(std::move(default_value)) { }
-
-    NodeWithDataIterator(NodeWithDataIterator const& o) = default;
-    NodeWithDataIterator(NodeWithDataIterator&& o) = default;
-
-    value_type operator*() {
-        if(data && wrapped.dbg != nullptr) {
-            auto unitig = wrapped.dbg->find(*wrapped, true).mappingToFullUnitig();
-            if(unitig.isEmpty) {
-                return py::none();
-            }
-
-            auto data_proxy = UnitigDataProxy(unitig);
-
-            if(!data_key.is_none()) {
-                auto key = data_key.cast<std::string>();
-                if(data_proxy.contains(key)) {
-                    return py::make_tuple(*wrapped, data_proxy.getData(key));
-                } else {
-                    return py::make_tuple(*wrapped, default_value);
-                }
-            } else {
-                return py::make_tuple(*wrapped, data_proxy);
-            }
-        } else {
-            return py::cast(*wrapped);
-        }
-    }
-
-    bool operator==(NodeWithDataIterator const& o) const {
-        return wrapped == o.wrapped && data == o.data;
-    }
-
-    bool operator!=(NodeWithDataIterator const& o) const {
-        return !operator==(o);
-    }
-
-    NodeWithDataIterator& operator++() {
-        ++wrapped;
-        return *this;
-    }
-
-    NodeWithDataIterator operator++(int) {
-        NodeWithDataIterator tmp(*this);
-        ++wrapped;
-
-        return tmp;
-    }
-
-private:
-    NodeIterator<T> wrapped;
-    bool data = false;
-    py::object data_key;
-    py::object default_value;
-};
 
 }
 

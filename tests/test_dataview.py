@@ -2,7 +2,6 @@ from collections.abc import Set, Mapping
 import pytest  # noqa
 
 from pyfrost import Strand, Kmer
-from pyfrost.views import NodeView, NodeDataView
 
 
 def test_node_dataview(mccortex):
@@ -10,8 +9,6 @@ def test_node_dataview(mccortex):
 
     assert isinstance(g.nodes, Set)
     assert isinstance(g.nodes, Mapping)
-    assert isinstance(g.nodes, NodeView)
-    assert isinstance(g.nodes(data=True), NodeDataView)
 
     # Test call without arguments, should return the same as without call
     node_set = set(g.nodes)
@@ -186,7 +183,6 @@ def test_edge_dataview_nbunch(mccortex):
         (kmer2, kmer4, "test")
     }
 
-    assert (kmer1, kmer2) in g.edges(data=True)
     assert (kmer1, kmer2, g.edges[kmer1, kmer2]) in g.edges(data=True)
     assert (kmer1, kmer2, "T") in g.edges(data="label")
 

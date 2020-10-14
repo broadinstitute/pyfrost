@@ -15,7 +15,7 @@
 #ifndef PYFROST_KMERCOUNTER_H
 #define PYFROST_KMERCOUNTER_H
 
-#include "Pyfrost.h"
+#include "pyfrost.h"
 #include "Kmer.h"
 
 // Specialize hashing for Kmer objects (to be used with robin_hood unordered_map)

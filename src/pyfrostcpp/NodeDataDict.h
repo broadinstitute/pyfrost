@@ -1,13 +1,13 @@
-#ifndef PYFROST_UNITIGDATAPROXY_H
-#define PYFROST_UNITIGDATAPROXY_H
+#ifndef PYFROST_NODEDATADICT_H
+#define PYFROST_NODEDATADICT_H
 
 #include <unordered_map>
 
-#include "Pyfrost.h"
+#include "pyfrost.h"
 
 namespace pyfrost {
 
-void define_UnitigDataProxy(py::module&);
+void define_NodeDataDict(py::module&);
 
 enum class UnitigMetaKeys : uint8_t {
     LENGTH,
@@ -25,19 +25,19 @@ enum class UnitigMetaKeys : uint8_t {
 
 class UnitigDataKeyIterator;
 
-class UnitigDataProxy {
+class NodeDataDict {
 public:
     friend class UnitigDataKeyIterator;
 
-    explicit UnitigDataProxy(PyfrostColoredUMap const& _unitig) : unitig(_unitig) {
+    explicit NodeDataDict(PyfrostColoredUMap const& _unitig) : unitig(_unitig) {
         if(unitig.isEmpty) {
-            throw std::runtime_error("Trying to construct UnitigDataProxy for non-existent unitig.");
+            throw std::runtime_error("Trying to construct NodeDataDict for non-existent unitig.");
         }
     }
-    UnitigDataProxy(UnitigDataProxy const& o) = default;
-    UnitigDataProxy(UnitigDataProxy&& o) = default;
+    NodeDataDict(NodeDataDict const& o) = default;
+    NodeDataDict(NodeDataDict&& o) = default;
 
-    UnitigDataProxy& operator=(UnitigDataProxy const& o) = default;
+    NodeDataDict& operator=(NodeDataDict const& o) = default;
 
     bool contains(std::string const& key) const;
     py::object getData(std::string const& key) const;
@@ -150,4 +150,4 @@ public:
 
 }
 
-#endif //PYFROST_UNITIGDATAPROXY_H
+#endif //PYFROST_NODEDATADICT_H
