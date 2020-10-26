@@ -17,18 +17,13 @@ Requirements
 Installation
 ------------
 
-Clone the repository, including third-party dependencies as git-submodules:
+Use the source tarball from Github to install the library:
 
 ```bash
-git clone --recurse-submodules https://github.com/broadinstitute/pyfrost
+pip install https://github.com/broadinstitute/pyfrost/releases/download/v0.1.0b1/pyfrost-0.1.0b1.tar.gz
 ```
 
-Install the library:
-
-```bash
-cd pyfrost
-pip install .
-```
+PIP and Conda packages will be coming soon.
 
 Usage 
 -----
