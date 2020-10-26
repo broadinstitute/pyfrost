@@ -7,23 +7,12 @@ A Python library for creating and analyzing compacted colored de Bruijn Graphs p
 This library is still in an early development stage, and the API is still subject to change. Furthermore, not all
 functions from NetworkX are implemented yet.
 
-Project Status
---------------
-
-A lot of functionality works, and with the current library you can fully navigate any Bifrost graph and access any
-metadata (e.g. colors). A limitation, however, is that while our `BifrostDiGraph` class mimics a lot of NetworkX's
-original `DiGraph` class, it's not a proper subclass and has different internal data structures, and this prevents certain
-NetworkX functions from working properly (i.e. copying a subgraph, node/edge filter views). Most navigational 
-algorithms work correctly.
-
-A refactor is planned to make our `BifrostDiGraph` a proper subgraph of `networkx.DiGraph`, but that's not finished yet.
-
 Requirements
 ------------
 
 * Python >= 3.6
 * C++14 compatible compiler (GCC >5, Clang >3.4)
-* CMake >= 3.11
+* CMake >= 3.10
 
 Installation
 ------------
@@ -132,7 +121,7 @@ Strand.FORWARD
 >>> for k, v in g.nodes['TCGAA'].items():
    ...:     print(k, "-", v)
    ...:
-colors - <bifrost_python.UnitigColors object at 0x10d79d5b0>
+colors - <pyfrostcpp.UnitigColors object at 0x10d79d5b0>
 unitig_sequence - TCGAAATCAGT
 tail - TCAGT
 length - 7
@@ -177,7 +166,7 @@ Find a specific k-mer (not necessarily the head of a unitig):
 >>> for k, v in mapping.items():
     ...:     print(k, "-", v)
     ...:
-colors - <bifrost_python.UnitigColors object at 0x10d79d1b0>
+colors - <pyfrostcpp.UnitigColors object at 0x10d79d1b0>
 unitig_sequence - TCGAAATCAGT
 tail - TCAGT
 length - 1
@@ -248,4 +237,16 @@ Pyfrost includes a separate k-mer counter. It's still pretty unoptimzed and slow
 # Load k-mer counts
 >>> counter = KmerCounter.from_file("sample.counts")
 ```
+
+
+Changelog
+---------
+
+Pyfrost is still under development and API is still subject to change.
+
+- 2020-10-25 - v0.1 beta 1
+    - Support for loading/building Bifrost graphs
+    - NetworkX-like API for accessing nodes/edges/node data
+    - Support for user data per unitig
+    - Support for many builtin NetworkX algorithms (DFS, BFS, ...)
 
