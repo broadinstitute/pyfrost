@@ -20,6 +20,9 @@ void define_AdjacencyOuterDict(py::module& m) {
 
         .def("__iter__", [](AdjacencyOuterDict const& self) {
             return py::make_iterator<py::return_value_policy::copy>(self.begin(), self.end());
+        }, py::keep_alive<0, 1>())
+        .def("iter_no_rev_compl", [](AdjacencyOuterDict const& self) {
+            return py::make_iterator<py::return_value_policy::copy>(self.begin_no_rc(), self.end_no_rc());
         }, py::keep_alive<0, 1>());
 
     auto Mapping = py::module::import("collections.abc").attr("Mapping");

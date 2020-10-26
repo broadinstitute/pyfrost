@@ -7,8 +7,8 @@ from pyfrost import Kmer
 def test_find_unitig(mccortex):
     g = mccortex
 
-    assert len(g) == 6
-    assert len(g.nodes) == 6
+    assert len(g) == 12
+    assert len(g.nodes) == 12
 
     # Single k-mer which is a head of a unitig
     kmer1 = Kmer('ACTGA')
@@ -112,21 +112,6 @@ def test_iteration(mccortex):
     g = mccortex
 
     nodes = set(g)
-
-    assert nodes == {
-        Kmer("TCGAA"),
-        Kmer("CCACG"),
-        Kmer("CGATG"),
-        Kmer("ATGCG"),
-        Kmer("GTGGC"),
-        Kmer("ATCGA"),
-    }
-
-    node_set = set()
-    for n in g:
-        node_set.add(n)
-        node_set.add(g.nodes[n].twin())
-
     truth = {
         Kmer("ACTGA"), Kmer("TCGAA"),
         Kmer("ATCGA"), Kmer("TCGAT"),
@@ -136,14 +121,7 @@ def test_iteration(mccortex):
         Kmer("ATGCC"), Kmer("GTGGC")
     }
 
-    assert node_set == truth
-
-    node_set = set()
-    for n in g.nodes:
-        node_set.add(n)
-        node_set.add(g.nodes[n].twin())
-
-    assert node_set == truth
+    assert nodes == truth
 
     n1 = Kmer('ACTGA')
     n2 = Kmer('TCGAA')
@@ -168,7 +146,7 @@ def test_in_out_edges(mccortex):
         successors = set(g.successors(s))
         assert t in successors
 
-    assert len(g.edges) == 7
+    assert len(g.edges) == 16
 
     assert ("ACTGA", "TCGAT") in g.edges
 

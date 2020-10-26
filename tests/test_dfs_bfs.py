@@ -20,22 +20,6 @@ def test_dfs(mccortex):
     for n in visited:
         assert visited[n] == 1
 
-    visited_set = set(visited.keys())
-    truth = {
-        Kmer("ACTGA"),
-        Kmer("TCGAA"),
-        Kmer("TCGAT"),
-        Kmer("CGATG"),
-        Kmer("ATGCC"),
-        Kmer("CCACC"),
-        Kmer("CCACG"),
-        Kmer("GCATC"),
-        Kmer("GTGGC"),
-        Kmer("ATGCG")
-    }
-
-    assert visited_set == truth
-
 
 def test_bfs(mccortex):
     g = mccortex
@@ -51,18 +35,3 @@ def test_bfs(mccortex):
     for n in visited:
         assert visited[n] == 1
 
-    visited_set = set(visited.keys())
-    truth = {
-        Kmer("ACTGA"),
-        Kmer("TCGAA"),
-        Kmer("TCGAT"),
-        Kmer("CGATG"),
-        Kmer("ATGCC"),
-        Kmer("CCACC"),
-        Kmer("CCACG"),
-        Kmer("GCATC"),
-        Kmer("GTGGC"),
-        Kmer("ATGCG")
-    }
-
-    assert visited_set == truth

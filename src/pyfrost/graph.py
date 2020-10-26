@@ -10,7 +10,7 @@ from typing import Union, Iterable
 import networkx
 
 from pyfrostcpp import PyfrostCCDBG, NodesDict, AdjacencyOuterDict, AdjacencyType, Kmer
-from pyfrost.views import PyfrostAdjacencyView
+from pyfrost.views import PyfrostAdjacencyView, PyfrostNodeView
 
 
 def disable_factory_func():
@@ -33,21 +33,29 @@ class BifrostDiGraph(networkx.DiGraph):
     edge_attr_dict_factory = disable_factory_func
 
     def __init__(self, bifrost_ccdbg=None, **attr):
-        if bifrost_ccdbg is None:
-            raise networkx.NetworkXError("Currently it's not possible to create a BifrostDiGraph from scratch. Use "
-                                         "`pyfrost.load` or `pyfrost.build`.")
-
-        self._ccdbg: PyfrostCCDBG = bifrost_ccdbg
-
         self.graph = attr
-        self.graph['color_names'] = list(bifrost_ccdbg.color_names())
-        self.graph['k'] = bifrost_ccdbg.get_k()
-        self.graph['g'] = bifrost_ccdbg.get_g()
 
-        self._node = NodesDict(bifrost_ccdbg)
-        self._adj = AdjacencyOuterDict(bifrost_ccdbg, AdjacencyType.SUCCESSORS)
-        self._pred = AdjacencyOuterDict(bifrost_ccdbg, AdjacencyType.PREDECESSORS)
-        self._succ = self._adj
+        if bifrost_ccdbg is None:
+            # Initialize with empty dicts if no PyfrostCCDBG object given.
+            #
+            # Many NetworkX functions (e.g. subgraph_view) rely on being able to construct a new graph object without
+            # arguments to the constructor. Those functions often assign _adj, _pred, and _succ afterwards so these
+            # empty dicts will often be replaced immediately.
+            self._node = {}
+            self._adj = {}
+            self._pred = {}
+            self._succ = self._adj
+        else:
+            self._ccdbg: PyfrostCCDBG = bifrost_ccdbg
+
+            self.graph['color_names'] = list(bifrost_ccdbg.color_names())
+            self.graph['k'] = bifrost_ccdbg.get_k()
+            self.graph['g'] = bifrost_ccdbg.get_g()
+
+            self._node = NodesDict(bifrost_ccdbg)
+            self._adj = AdjacencyOuterDict(bifrost_ccdbg, AdjacencyType.SUCCESSORS)
+            self._pred = AdjacencyOuterDict(bifrost_ccdbg, AdjacencyType.PREDECESSORS)
+            self._succ = self._adj
 
     def add_node(self, node_for_adding, **attr):
         raise networkx.NetworkXError("Manually adding nodes is not supported for BifrostDiGraph")
@@ -84,7 +92,7 @@ class BifrostDiGraph(networkx.DiGraph):
         """
         Find the unitig (node) containing a given k-mer
         """
-        
+
         return self._ccdbg.find(kmer, extremities_only)
 
     def nbunch_iter(self, nbunch=None):
@@ -92,6 +100,15 @@ class BifrostDiGraph(networkx.DiGraph):
         yield from (
             Kmer(n) if isinstance(n, str) else n for n in super().nbunch_iter(nbunch)
         )
+
+    @property
+    def nodes(self):
+        nodes = PyfrostNodeView(self)
+        # Lazy View creation: overload the (class) property on the instance
+        # Then future G.nodes use the existing View
+        # setattr doesn't work because attribute already exists
+        self.__dict__['nodes'] = nodes
+        return nodes
 
     @property
     def adj(self):

@@ -11,7 +11,7 @@ namespace py = pybind11;
 namespace pyfrost {
 
 /**
- * This class represents NetworkX's _nodes attribute and can be used to access node metadata.
+ * This class represents NetworkX's _node attribute and can be used to access node metadata.
  */
 class NodesDict {
 public:
@@ -53,18 +53,33 @@ public:
      * Iterate over unitigs (nodes)
      */
     inline auto begin() const {
-        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.begin(), false);
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.begin(), true);
     }
 
     /**
      * End of the unitig (node) iterator
      */
     inline auto end() const {
-        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.end(), false);
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.end(), true);
+    }
+
+    /**
+     * Iterate over unitigs (nodes) without reverse complements
+     */
+    inline auto begin_no_rc() const {
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.begin());
+    }
+
+    /**
+     * End of the unitig (node) iterator without reverse complements
+     */
+    inline auto end_no_rc() const {
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.end());
     }
 
     size_t numNodes() const {
-        return dbg.size();
+        // Also take into account reverse complements
+        return dbg.size() * 2;
     }
 
 private:

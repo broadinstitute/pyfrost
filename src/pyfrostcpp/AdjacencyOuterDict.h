@@ -33,11 +33,19 @@ public:
     }
 
     auto begin() const {
-        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.begin(), false);
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.begin(), true);
     }
 
     auto end() const {
-        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.end(), false);
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.end(), true);
+    }
+
+    auto begin_no_rc() const {
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.begin());
+    }
+
+    auto end_no_rc() const {
+        return NodeIterator<PyfrostCCDBG::iterator>(&dbg, dbg.end());
     }
 
     bool contains(Kmer const& kmer) {

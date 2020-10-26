@@ -20,6 +20,9 @@ void define_NodesDict(py::module& m) {
         // Iterate over all nodes
         .def("__iter__", [](NodesDict const& self) {
             return py::make_iterator(self.begin(), self.end());
+        }, py::keep_alive<0, 1>())
+        .def("iter_no_rev_compl", [](NodesDict const& self) {
+            return py::make_iterator<py::return_value_policy::copy>(self.begin_no_rc(), self.end_no_rc());
         }, py::keep_alive<0, 1>());
 
     // NodesDict should act like a dict, so inherit from Mapping mixin

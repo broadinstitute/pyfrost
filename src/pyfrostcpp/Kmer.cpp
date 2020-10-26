@@ -3,18 +3,27 @@
 namespace pyfrost {
 
 
-Kmer to_kmer(PyfrostColoredUMap const& obj) {
-    return obj.getMappedHead();
+Kmer to_kmer(PyfrostColoredUMap const& obj, bool rev_compl) {
+    if(rev_compl) {
+        return obj.getMappedTail().twin();
+    } else {
+        return obj.getMappedHead();
+    }
 }
 
-Kmer to_kmer(py::handle const& obj) {
+Kmer to_kmer(py::handle const& obj, bool rev_compl) {
     if(obj) {
         if(py::isinstance<Kmer>(obj)) {
             return py::cast<Kmer>(obj);
         } else if (py::isinstance<py::str>(obj)) {
             std::string kmer = py::cast<std::string>(obj);
             if(kmer.size() == Kmer::k) {
-                return Kmer(kmer.c_str());
+                auto kmer_obj = Kmer(kmer.c_str());
+                if(rev_compl) {
+                    return kmer_obj.twin();
+                } else {
+                    return kmer_obj;
+                }
             }
         }
     }
@@ -25,13 +34,18 @@ Kmer to_kmer(py::handle const& obj) {
     return kmer;
 }
 
-Kmer to_kmer(py::object const& obj) {
+Kmer to_kmer(py::object const& obj, bool rev_compl) {
     if(py::isinstance<Kmer>(obj)) {
         return py::cast<Kmer>(obj);
     } else if (py::isinstance<py::str>(obj)) {
         std::string kmer = py::cast<std::string>(obj);
         if(kmer.size() == Kmer::k) {
-            return Kmer(kmer.c_str());
+            auto kmer_obj = Kmer(kmer.c_str());
+            if(rev_compl) {
+                return kmer_obj.twin();
+            } else {
+                return kmer_obj;
+            }
         }
     }
 
@@ -41,12 +55,28 @@ Kmer to_kmer(py::object const& obj) {
     return kmer;
 }
 
-Kmer to_kmer(Kmer const& kmer) {
-    return kmer;
+Kmer to_kmer(Kmer const& kmer, bool rev_compl) {
+    if(rev_compl) {
+        return kmer.twin();
+    } else {
+        return kmer;
+    }
 }
 
-Kmer to_kmer(char const* kmer) {
-    return Kmer(kmer);
+Kmer to_kmer(char const* kmer, bool rev_compl) {
+    if(strlen(kmer) == Kmer::k) {
+        auto kmer_obj = Kmer(kmer);
+        if(rev_compl) {
+            return kmer_obj.twin();
+        } else {
+            return kmer_obj;
+        }
+    }
+
+    Kmer kmer_obj;
+    kmer_obj.set_empty();
+
+    return kmer_obj;
 }
 
 bool is_kmer_empty(Kmer const& kmer) {

@@ -20,22 +20,22 @@ namespace pyfrost {
  * k-mer.
  */
 template <typename T>
-Kmer to_kmer(T) {
+Kmer to_kmer(T, bool rev_compl=false) {
     Kmer kmer;
     kmer.set_empty();
 
     return kmer;
 }
 
-Kmer to_kmer(PyfrostColoredUMap const& obj);
+Kmer to_kmer(PyfrostColoredUMap const& obj, bool rev_compl=false);
 
-Kmer to_kmer(py::handle const& obj);
+Kmer to_kmer(py::handle const& obj, bool rev_compl=false);
 
-Kmer to_kmer(py::object const& obj);
+Kmer to_kmer(py::object const& obj, bool rev_compl=false);
 
-Kmer to_kmer(Kmer const& kmer);
+Kmer to_kmer(Kmer const& kmer, bool rev_compl=false);
 
-Kmer to_kmer(char const* kmer);
+Kmer to_kmer(char const* kmer, bool rev_compl=false);
 
 bool is_kmer_empty(Kmer const& kmer);
 

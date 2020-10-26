@@ -21,5 +21,5 @@ pybind11_add_module(pyfrostcpp
     )
 
 target_compile_features(pyfrostcpp PRIVATE cxx_std_14)
-target_compile_options(pyfrostcpp PUBLIC -fvisibility=hidden)
-target_link_libraries(pyfrostcpp PUBLIC bifrost_dynamic robin_hood cereal -fvisibility=hidden)
+target_compile_options(pyfrostcpp PUBLIC -fvisibility=hidden -fPIC)
+target_link_libraries(pyfrostcpp PUBLIC bifrost_static robin_hood cereal -fvisibility=hidden)

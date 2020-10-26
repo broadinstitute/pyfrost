@@ -46,6 +46,13 @@ def test_node_dataview(mccortex):
     for node_data in values:
         assert node_data['is_full_mapping'] is True
 
+    forward_unitigs = list(g.nodes(with_rev_compl=False))
+    for kmer in forward_unitigs:
+        assert g.find(kmer)['strand'] == Strand.FORWARD
+
+    num_forward = len(list(g.nodes(with_rev_compl=False)))
+    assert num_forward == int(len(g) / 2)
+
 
 def test_unitig_data(mccortex):
     g = mccortex

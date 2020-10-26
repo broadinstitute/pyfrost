@@ -14,6 +14,8 @@ namespace pyfrost {
  *
  * This class is templated, so you can use any kind of iterator as source for nodes. Each item of the wrapped
  * iterator is converted to a Kmer object using `to_kmer`.
+ *
+ * Can optionally also include reverse complement of nodes/kmers
  */
 template<typename T>
 class NodeIterator {
@@ -24,17 +26,20 @@ public:
     using reference = value_type&;
     using pointer = value_type*;
 
-    NodeIterator(PyfrostCCDBG* dbg, T iter, bool _check_valid=true) :
-        dbg(dbg), wrapped(iter), check_valid(_check_valid)
+    NodeIterator(PyfrostCCDBG* dbg, T iter, bool _with_rev_compl=false) :
+        dbg(dbg), wrapped(iter), is_rev_compl(false), with_rev_compl(_with_rev_compl)
     {
         setCurrentKmer();
     }
 
-    NodeIterator(NodeIterator const& o) : dbg(o.dbg), wrapped(o.wrapped), check_valid(o.check_valid) {
+    NodeIterator(NodeIterator const& o) : dbg(o.dbg), wrapped(o.wrapped), is_rev_compl(o.is_rev_compl),
+        with_rev_compl(o.with_rev_compl) {
         setCurrentKmer();
     };
 
-    NodeIterator(NodeIterator&& o) noexcept : dbg(o.dbg), wrapped(std::move(o.wrapped)), check_valid(o.check_valid) {
+    NodeIterator(NodeIterator&& o) noexcept : dbg(o.dbg), wrapped(std::move(o.wrapped)), is_rev_compl(o.is_rev_compl),
+        with_rev_compl(o.with_rev_compl)
+    {
         setCurrentKmer();
         o.dbg = nullptr;
     }
@@ -43,6 +48,10 @@ public:
         if(&o != this) {
             dbg = o.dbg;
             wrapped = o.wrapped;
+            is_rev_compl = o.is_rev_compl;
+            with_rev_compl = o.with_rev_compl;
+
+            setCurrentKmer();
         }
 
         return *this;
@@ -61,21 +70,18 @@ public:
      * a unitig, return an empty k-mer object.
      */
     NodeIterator& operator++() {
-        if(check_valid) {
-            // Move iterator along. If we encounter an invalid value, continue moving, until the iterator doesn't change
-            // anymore.
-            T prev;
-            do {
-                prev = wrapped;
+        if(with_rev_compl) {
+            if(is_rev_compl) {
                 ++wrapped;
-
-                setCurrentKmer();
-            } while (is_kmer_empty(current) && prev != wrapped);
-
+                is_rev_compl = false;
+            } else {
+                is_rev_compl = true;
+            }
         } else {
             ++wrapped;
-            setCurrentKmer();
         }
+
+        setCurrentKmer();
 
         return *this;
     }
@@ -107,89 +113,14 @@ private:
     PyfrostCCDBG* dbg = nullptr;
     T wrapped;
     Kmer current;
+    bool is_rev_compl;
     bool check_valid;
+    bool with_rev_compl;
 
     void setCurrentKmer() {
-        current = to_kmer(*wrapped);
-
-        if(check_valid) {
-            if(dbg != nullptr) {
-                auto unitig = dbg->find(current, true);
-
-                if(unitig.isEmpty) {
-                    current.set_empty();
-                }
-            } else {
-                current.set_empty();
-            }
-        }
+        current = to_kmer(*wrapped, with_rev_compl && is_rev_compl);
     }
 
-};
-
-/**
- * This class provides a wrapper around any container with nodes, for easy access to `NodeIterator` objects.
- *
- * Example containers are any python iterables, or some C++ container like vector.
- *
- * @tparam T container typename with nodes
- */
-template<typename T=void>
-class NodeIterable {
-private:
-    PyfrostCCDBG& dbg;
-    T iterable;
-
-public:
-    using iterator_inner_type = decltype(iterable.begin());
-    using iterator_type = NodeIterator<iterator_inner_type>;
-
-    NodeIterable(PyfrostCCDBG& dbg, T iterable) : dbg(dbg), iterable(iterable) { }
-
-    NodeIterable(NodeIterable<T> const& o) = default;
-    NodeIterable(NodeIterable<T>&& o) noexcept = default;
-
-    iterator_type begin() const {
-        return iterator_type(&dbg, iterable.begin());
-    }
-
-    iterator_type end() const {
-        return iterator_type(&dbg, iterable.end());
-    }
-
-    PyfrostCCDBG& getGraph() const {
-        return dbg;
-    }
-};
-
-/**
- * Specialization for NodeIterator without any specific container. Will iterate over all nodes in the graph.
- */
-template<>
-class NodeIterable<void> {
-private:
-    PyfrostCCDBG& dbg;
-
-public:
-    using iterator_inner_type = decltype(dbg.begin());
-    using iterator_type = NodeIterator<iterator_inner_type>;
-
-    explicit NodeIterable(PyfrostCCDBG& dbg) : dbg(dbg) { }
-
-    NodeIterable(NodeIterable<void> const& o) = default;
-    NodeIterable(NodeIterable<void>&& o) noexcept = default;
-
-    iterator_type begin() const {
-        return {&dbg, dbg.begin(), false};
-    }
-
-    iterator_type end() const {
-        return {&dbg, dbg.end(), false};
-    }
-
-    PyfrostCCDBG& getGraph() const {
-        return dbg;
-    }
 };
 
 
