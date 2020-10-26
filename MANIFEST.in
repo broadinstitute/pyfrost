@@ -3,3 +3,10 @@ global-include CMakeLists.txt *.cmake
 recursive-include src *.py *.h *.cpp *.txt
 recursive-include tests *.py *.cpp *.h *.txt *.fasta
 recursive-include vendor *.txt *.h *.hh *.c *.cpp *.tcc *.hpp *.in *.rst *.sh
+prune .git/
+prune cmake-*
+prune build/
+prune vendor/*/tests
+prune .eggs/
+prune vendor/*/docs
+
