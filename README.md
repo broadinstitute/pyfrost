@@ -61,7 +61,7 @@ minimizer size respectively.
 Loading a *colored* graph created earlier with Bifrost:
 
 ```python
-g = pyfrost.load('graph.gfa', 'graph.bfg_colors')
+g = pyfrost.load('graph.gfa')
 ```
 
 Access some graph metadata:
