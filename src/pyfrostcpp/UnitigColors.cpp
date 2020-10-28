@@ -49,7 +49,7 @@ bool UnitigColorIterator::operator!=(const UnitigColorIterator &o) {
 
 void define_UnitigColors(py::module &m) {
     auto py_UnitigColors = py::class_<UnitigColorsProxy>(m, "UnitigColors")
-        .def("__getitem__", &UnitigColorsProxy::getColorsAtPos, py::is_operator())
+        .def("__getitem__", &UnitigColorsProxy::getColorsAtPos)
         .def("__contains__", &UnitigColorsProxy::contains)
         .def("__len__", &UnitigColorsProxy::size)
         .def("__iter__", [](UnitigColorsProxy const &self) {

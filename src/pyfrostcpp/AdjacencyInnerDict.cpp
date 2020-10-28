@@ -92,10 +92,8 @@ void define_AdjacencyInnerDict(py::module& m) {
             py::is_operator())
         .def("__contains__", [] (AdjacencyInnerDict const& self, py::object const& o) { return false; })
 
-        .def("__getitem__", py::overload_cast<char const*>(&AdjacencyInnerDict::getEdgeDict, py::const_),
-            py::is_operator())
-        .def("__getitem__", py::overload_cast<Kmer const&>(&AdjacencyInnerDict::getEdgeDict, py::const_),
-             py::is_operator());
+        .def("__getitem__", py::overload_cast<char const*>(&AdjacencyInnerDict::getEdgeDict, py::const_))
+        .def("__getitem__", py::overload_cast<Kmer const&>(&AdjacencyInnerDict::getEdgeDict, py::const_));
 
     auto Mapping = py::module::import("collections.abc").attr("Mapping");
     auto Set = py::module::import("collections.abc").attr("Set");

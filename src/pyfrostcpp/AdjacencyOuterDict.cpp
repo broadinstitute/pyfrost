@@ -13,9 +13,9 @@ void define_AdjacencyOuterDict(py::module& m) {
         .def("__contains__", py::overload_cast<char const*>(&AdjacencyOuterDict::contains))
         .def("__contains__", [] (AdjacencyOuterDict const& self, py::object const& o) { return false; })
 
-        .def("__getitem__", py::overload_cast<Kmer const&>(&AdjacencyOuterDict::getInnerDict), py::is_operator(),
+        .def("__getitem__", py::overload_cast<Kmer const&>(&AdjacencyOuterDict::getInnerDict),
              py::keep_alive<0, 1>())
-        .def("__getitem__", py::overload_cast<char const*>(&AdjacencyOuterDict::getInnerDict), py::is_operator(),
+        .def("__getitem__", py::overload_cast<char const*>(&AdjacencyOuterDict::getInnerDict),
              py::keep_alive<0, 1>())
 
         .def("__iter__", [](AdjacencyOuterDict const& self) {

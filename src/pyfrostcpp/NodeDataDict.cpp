@@ -7,9 +7,9 @@ void define_NodeDataDict(py::module& m) {
 
     auto handle = py::class_<NodeDataDict>(m, "NodeDataDict")
         // Dict like interface
-        .def("__getitem__", &NodeDataDict::getData, py::is_operator())
-        .def("__setitem__", &NodeDataDict::setData, py::is_operator())
-        .def("__delitem__", &NodeDataDict::delData, py::is_operator())
+        .def("__getitem__", &NodeDataDict::getData)
+        .def("__setitem__", &NodeDataDict::setData)
+        .def("__delitem__", &NodeDataDict::delData)
         .def("__contains__", &NodeDataDict::contains, py::is_operator())
         .def("__len__", &NodeDataDict::size)
         .def("__iter__", [](NodeDataDict const& self) {

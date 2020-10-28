@@ -284,8 +284,8 @@ void define_KmerCounter(py::module& m) {
             return as_pyarray<std::vector<uint64_t>>(std::move(self.getFrequencySpectrum()));
         })
 
-        .def("__getitem__", py::overload_cast<Kmer const&>(&KmerCounter::query, py::const_), py::is_operator())
-        .def("__getitem__", py::overload_cast<char const*>(&KmerCounter::query, py::const_), py::is_operator())
+        .def("__getitem__", py::overload_cast<Kmer const&>(&KmerCounter::query, py::const_))
+        .def("__getitem__", py::overload_cast<char const*>(&KmerCounter::query, py::const_))
 
         .def("__iter__", [] (KmerCounter& self) {
             return py::make_key_iterator(self.begin(), self.end());

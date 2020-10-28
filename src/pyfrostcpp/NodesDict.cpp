@@ -7,8 +7,8 @@ void define_NodesDict(py::module& m) {
         .def(py::init<PyfrostCCDBG&>())
 
         // Access nodes with [] operator overloading
-        .def("__getitem__", py::overload_cast<char const*>(&NodesDict::findNode), py::is_operator())
-        .def("__getitem__", py::overload_cast<Kmer const&>(&NodesDict::findNode), py::is_operator())
+        .def("__getitem__", py::overload_cast<char const*>(&NodesDict::findNode))
+        .def("__getitem__", py::overload_cast<Kmer const&>(&NodesDict::findNode))
 
         .def("__contains__", py::overload_cast<Kmer const&>(&NodesDict::contains), py::is_operator())
         .def("__contains__", py::overload_cast<char const*>(&NodesDict::contains), py::is_operator())
