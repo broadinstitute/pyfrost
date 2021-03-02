@@ -76,7 +76,6 @@ def test_unitig_data(mccortex):
     assert kmer2['pos'] == 0
     assert kmer2['strand'] == Strand.FORWARD
 
-    print(str(kmer3), kmer3['pos'], kmer3['strand'], kmer3['unitig_length'], kmer3['length'])
     assert kmer3['pos'] == 2
     assert kmer3['strand'] == Strand.REVERSE
 

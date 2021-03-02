@@ -23,8 +23,6 @@ def test_subgraph(mccortex):
     assert (Kmer('ATGCC'), Kmer('CCACC')) in sg.edges
     assert (Kmer('ATGCC'), Kmer('CCACG')) not in sg.edges
 
-    print(list(sg.edges))
-
     assert list(sg.edges) == [
         (Kmer('CGATG'), Kmer('ATGCC')),
         (Kmer('ATGCC'), Kmer('CCACC')),
