@@ -16,6 +16,10 @@ pybind11_add_module(pyfrostcpp
     NodeIterator.h
     NodesDict.h
     NodesDict.cpp
+    JunctionTree.h
+    JunctionTree.cpp
+    LinkedDBG.h
+    LinkedDBG.cpp
     pyfrost.h
     pyfrost.cpp
     )

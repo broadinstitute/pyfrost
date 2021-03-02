@@ -6,9 +6,22 @@
 
 #include "UnitigDataDict.h"
 
-namespace py = pybind11;
-
 #include <Kmer.hpp>
+
+// Specialize hashing for Kmer objects (to be used with robin_hood unordered_map)
+namespace std {
+
+template<>
+class hash<Kmer> {
+public:
+    size_t operator()(Kmer const& kmer) const {
+        return kmer.hash();
+    }
+};
+
+}
+
+namespace py = pybind11;
 
 namespace pyfrost {
 

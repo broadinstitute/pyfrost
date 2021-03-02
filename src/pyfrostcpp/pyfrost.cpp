@@ -10,6 +10,8 @@
 #include "UnitigColors.h"
 #include "NodesDict.h"
 #include "AdjacencyOuterDict.h"
+#include "JunctionTree.h"
+#include "LinkedDBG.h"
 
 namespace py = pybind11;
 
@@ -178,6 +180,8 @@ PYBIND11_MODULE(pyfrostcpp, m) {
     pyfrost::define_NodesDict(m);
     pyfrost::define_AdjacencyInnerDict(m);
     pyfrost::define_AdjacencyOuterDict(m);
+    pyfrost::define_JunctionTreeNode(m);
+    pyfrost::define_LinkedDBG(m);
 
     m.def("load", &pyfrost::load,
           "Load an existing colored Bifrost graph from a file.");
