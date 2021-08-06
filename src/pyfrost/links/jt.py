@@ -10,9 +10,12 @@ The algorithms have been modified to support non-binary trees.
 
 from __future__ import annotations
 from collections import deque
+from typing import Iterable
+
+from pyfrostcpp import JunctionTreeNode
 
 
-def preorder(jt: pyfrostcpp.JunctionTreeNode):
+def preorder(jt: JunctionTreeNode) -> Iterable[JunctionTreeNode]:
     if not jt:
         return
 
@@ -28,7 +31,7 @@ def preorder(jt: pyfrostcpp.JunctionTreeNode):
             stack.appendleft(child)
 
 
-def postorder(jt: pyfrostcpp.JunctionTreeNode):
+def postorder(jt: JunctionTreeNode) -> Iterable[JunctionTreeNode]:
     if not jt:
         return
 
@@ -61,7 +64,7 @@ def postorder(jt: pyfrostcpp.JunctionTreeNode):
                     child_ix[0] += 1  # Update child ix of parent
 
 
-def bfs(jt: pyfrostcpp.JunctionTreeNode):
+def bfs(jt: JunctionTreeNode) -> Iterable[JunctionTreeNode]:
     if not jt:
         return
 

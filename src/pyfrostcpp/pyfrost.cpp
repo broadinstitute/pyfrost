@@ -11,7 +11,8 @@
 #include "NodesDict.h"
 #include "AdjacencyOuterDict.h"
 #include "JunctionTree.h"
-#include "LinkedDBG.h"
+#include "LinkDB.h"
+#include "MemLinkDB.h"
 
 namespace py = pybind11;
 
@@ -181,7 +182,8 @@ PYBIND11_MODULE(pyfrostcpp, m) {
     pyfrost::define_AdjacencyInnerDict(m);
     pyfrost::define_AdjacencyOuterDict(m);
     pyfrost::define_JunctionTreeNode(m);
-    pyfrost::define_LinkedDBG(m);
+    pyfrost::define_LinkDB(m);
+    pyfrost::define_MemLinkDB(m);
 
     m.def("load", &pyfrost::load,
           "Load an existing colored Bifrost graph from a file.");
