@@ -49,4 +49,18 @@ def test_navigate_with_links(linked_mccortex):
         Kmer("CGATG"),
         Kmer("ATGCC"),
         Kmer("CCACG"),
+        Kmer("GTGGC"),
+        Kmer("GCATC"),
+    ]
+
+
+def test_navigation_conflicting_links(linked_mccortex):
+    g, mem_link_db = linked_mccortex
+    links.add_links_from_sequence(g, mem_link_db, "TTTCGATGCCACG")
+
+    path = list(links.link_supported_path_from(g, mem_link_db, Kmer("ACTGA")))
+    assert path == [
+        Kmer("ACTGA"),
+        Kmer("TCGAT"),
+        Kmer("CGATG")
     ]
