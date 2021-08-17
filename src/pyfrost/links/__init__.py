@@ -15,18 +15,18 @@ if TYPE_CHECKING:
     from pyfrost.graph import BifrostDiGraph
 
 
-def add_links_from_sequence(linkdb: LinkDB, graph: BifrostDiGraph, sequence: str):
+def add_links_from_sequence(graph: BifrostDiGraph, linkdb: LinkDB, sequence: str):
     """
     Thread `sequence` through the ccDBG (`graph`), and annotate which branch was taken at junctions in `linkdb`.
 
     Parameters
     ----------
-    linkdb : LinkDB
-        The link database object
     graph : BifrostDiGraph
         The ccDBG
+    linkdb : LinkDB
+        The link database object
     sequence : str
         The sequence to thread to the graph
     """
 
-    return pyfrostcpp.add_links_from_sequence(linkdb, graph._ccdbg, sequence)
+    return pyfrostcpp.add_links_from_sequence(graph._ccdbg, linkdb, sequence)
