@@ -5,7 +5,6 @@ Think of building paths through the graph, depth-first search, etc.
 """
 
 from __future__ import annotations
-import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Iterable, Union, Optional
 from pyfrost.links import jt
@@ -19,7 +18,6 @@ if TYPE_CHECKING:
     from pyfrost.links.jt import JunctionTreeNode
 
 __all__ = ['oldest_link', 'link_supported_path_from']
-logger = logging.getLogger(__name__)
 
 
 @dataclass(order=True)
@@ -109,10 +107,6 @@ def link_supported_path_from(G: BifrostDiGraph, linkdb: LinkDB, source: Union[Km
                 PickedUpLink(0, jt.junction_choices(jt_node), 0)
                 for jt_node in jt.preorder(linkdb[tail]) if jt_node.is_leaf()
             )
-
-        if not picked_up_links:
-            # No link support anymore, quit
-            return
 
         # Key neighbors by the nucleotide added
         neighbors_dict = {
