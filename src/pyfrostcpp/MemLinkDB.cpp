@@ -23,6 +23,8 @@ void define_MemLinkDB(py::module& m) {
             return self.getLinks(kmer);
         }, py::keep_alive<0, 1>())
 
+        .def("__contains__", &MemLinkDB::hasLinks)
+
         .def("__getitem__", [] (MemLinkDB& self, const Kmer& kmer) {
             return self.getLinks(kmer);
         }, py::keep_alive<0, 1>())

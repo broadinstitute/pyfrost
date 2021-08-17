@@ -23,9 +23,14 @@ public:
     LinkDB& operator=(LinkDB const& o) = default;
 
     /**
+     * Check if the database has links for a given kmer
+     */
+    virtual bool hasLinks(Kmer const& kmer) const = 0;
+
+    /**
      * Get a JunctionTreeNode representing all links for a given k-mer
      */
-    virtual std::shared_ptr<JunctionTreeNode> getLinks(Kmer const &kmer) = 0;
+    virtual std::shared_ptr<JunctionTreeNode> getLinks(Kmer const& kmer) = 0;
 
     /**
      * Total number of JunctionTrees in this database
@@ -65,12 +70,12 @@ size_t kmerPosOriented(UnitigMap<U, G> const& unitig) {
  * stored in the given `LinkDB` object.
  *
  * @tparam T Type of graph (CompactedDBG, ColoredCDBG, ...)
- * @param db LinkDB object used to store junction trees.
  * @param graph The graph object
+ * @param db LinkDB object used to store junction trees.
  * @param sequence DNA sequence to thread through the graph
  */
 template<typename T>
-void addLinksFromSequence(LinkDB& db, T& graph, const std::string& sequence)
+void addLinksFromSequence(T& graph, LinkDB& db, const std::string& sequence)
 {
     KmerIterator kmer_iter(sequence.c_str()), kmer_end;
     // Keep track through which branch points this sequence is threaded through, to easily update previous junction

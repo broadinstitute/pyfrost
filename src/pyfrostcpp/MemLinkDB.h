@@ -9,12 +9,15 @@ namespace pyfrost {
 
 class MemLinkDB : public LinkDB {
 public:
-    MemLinkDB() { }
-
+    MemLinkDB() = default;
     MemLinkDB(MemLinkDB const& o) = default;
     MemLinkDB(MemLinkDB&& o) noexcept = default;
 
     MemLinkDB& operator=(MemLinkDB const& o) = default;
+
+    bool hasLinks(Kmer const& kmer) const override {
+        return junction_trees.contains(kmer);
+    }
 
     std::shared_ptr<JunctionTreeNode> getLinks(Kmer const& kmer) override;
 
