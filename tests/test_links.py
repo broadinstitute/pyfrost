@@ -1,13 +1,11 @@
 from collections import deque
 import pytest
 
-from pyfrost import LinkedDBG, Kmer, jt
+from pyfrost import Kmer, links
 
 
-def test_add_links(mccortex):
-    linked_dbg = LinkedDBG(mccortex)
-
-    linked_dbg.add_links_from_seq("TTTCGATGCGATGCGATGCCACG")
+def test_add_links(linked_mccortex):
+    g, mem_link_db = linked_mccortex
 
     known_lengths = {
         Kmer("TTCGA"): 1,
@@ -15,7 +13,7 @@ def test_add_links(mccortex):
         Kmer("GCGAT"): 2
     }
 
-    for kmer, tree in linked_dbg.items():
+    for kmer, tree in mem_link_db.items():
         if kmer in known_lengths:
             assert len(tree) == known_lengths[kmer]
         else:
@@ -27,16 +25,28 @@ def test_add_links(mccortex):
         Kmer("GCGAT"): {"GCG", "CG"}
     }
 
-    for kmer, tree in linked_dbg.items():
+    for kmer, tree in mem_link_db.items():
         all_choices = set()
-        for node in jt.postorder(tree):
-            if node.is_terminal():
-                choices = deque()
-                curr = node
-                while curr.parent_edge:
-                    choices.appendleft(curr.parent_edge)
-                    curr = curr.parent
-
-                all_choices.add("".join(choices))
+        for node in links.jt.postorder(tree):
+            if node.is_leaf():
+                choices = links.jt.junction_choices(node)
+                all_choices.add(choices)
 
         assert all_choices == known_choices.get(kmer, set())
+
+
+def test_navigate_with_links(linked_mccortex):
+    g, mem_link_db = linked_mccortex
+
+    path = list(links.link_supported_path_from(g, mem_link_db, Kmer("ACTGA")))
+    assert path == [
+        Kmer("ACTGA"),
+        Kmer("TCGAT"),
+        Kmer("CGATG"),
+        Kmer("ATGCG"),
+        Kmer("CGATG"),
+        Kmer("ATGCG"),
+        Kmer("CGATG"),
+        Kmer("ATGCC"),
+        Kmer("CCACG"),
+    ]
