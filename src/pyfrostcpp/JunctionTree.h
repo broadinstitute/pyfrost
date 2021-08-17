@@ -22,7 +22,7 @@ public:
     children_t& getChildren();
     junction_node_ptr_t addEdge(char edge);
 
-    bool isTerminal() const;
+    bool isLeaf() const;
 
     void prune(size_t threshold);
     size_t getCount() const;

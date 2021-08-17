@@ -10,9 +10,10 @@ The algorithms have been modified to support non-binary trees.
 
 from __future__ import annotations
 from collections import deque
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
-from pyfrostcpp import JunctionTreeNode
+if TYPE_CHECKING:
+    from pyfrostcpp import JunctionTreeNode
 
 
 def preorder(jt: JunctionTreeNode) -> Iterable[JunctionTreeNode]:
@@ -27,7 +28,7 @@ def preorder(jt: JunctionTreeNode) -> Iterable[JunctionTreeNode]:
         yield node
 
         # Reversed to that the right most child gets processed last
-        for child in reversed(node.values()):
+        for child in reversed(list(node.values())):
             stack.appendleft(child)
 
 
@@ -75,3 +76,27 @@ def bfs(jt: JunctionTreeNode) -> Iterable[JunctionTreeNode]:
 
         for c in node.values():
             queue.append(c)
+
+
+def junction_choices(jt: JunctionTreeNode) -> str:
+    """
+    Get junction choices that lead to the given tree node represented as a string.
+
+    Parameters
+    ----------
+    jt : JunctionTreeNode
+        The node in the tree for which to obtain all junction choices. Usually this is a leaf node.
+
+    Returns
+    -------
+    str
+        Each nucleotide in the returned string represents a junction choice.
+    """
+
+    choices = []
+    curr = jt
+    while curr.parent_edge:
+        choices.append(curr.parent_edge)
+        curr = curr.parent
+
+    return "".join(reversed(choices))

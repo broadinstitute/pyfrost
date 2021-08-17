@@ -54,7 +54,7 @@ size_t JunctionTreeNode::getCount() const
     return count;
 }
 
-bool JunctionTreeNode::isTerminal() const
+bool JunctionTreeNode::isLeaf() const
 {
     if(children.empty()) {
         return true;
@@ -118,7 +118,7 @@ void define_JunctionTreeNode(py::module& m) {
         })
 
         .def("prune", &JunctionTreeNode::prune)
-        .def("is_terminal", &JunctionTreeNode::isTerminal)
+        .def("is_leaf", &JunctionTreeNode::isLeaf)
         .def_property_readonly("count", &JunctionTreeNode::getCount)
         .def_property_readonly("parent", [] (JunctionTreeNode& self) -> py::object {
             if(auto parent = self.getParent().lock()) {
