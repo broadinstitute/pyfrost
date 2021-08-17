@@ -15,7 +15,7 @@ def mccortex2():
                                    k=5, g=3)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def linked_mccortex(mccortex):
     linkdb = links.MemLinkDB()
     links.add_links_from_sequence(mccortex, linkdb, "TTTCGATGCGATGCGATGCCACG")
