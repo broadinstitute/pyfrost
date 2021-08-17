@@ -5,13 +5,16 @@
 """
 
 from __future__ import annotations
+from typing import TYPE_CHECKING
 
 import pydot
 
-from pyfrost.graph import BifrostDiGraph
+if TYPE_CHECKING:
+    from pyfrost.graph import BifrostDiGraph
+    from IPython.display import Image
 
 
-def to_pydot(dbg: BifrostDiGraph, full_sequence: bool=False) -> 'pydot.Dot':
+def to_pydot(dbg: BifrostDiGraph, full_sequence: bool=False) -> pydot.Dot:
     """
     Transform a Pyfrost compacted colored De Bruijn graph to a PyDot graph data structure.
 
@@ -42,7 +45,7 @@ def to_pydot(dbg: BifrostDiGraph, full_sequence: bool=False) -> 'pydot.Dot':
     return pg
 
 
-def display_graph(dbg: BifrostDiGraph, *args, **kwargs):
+def display_graph(dbg: BifrostDiGraph, *args, **kwargs) -> Image:
     """
     Display the graph
     :param dbg:
