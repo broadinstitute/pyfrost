@@ -14,8 +14,8 @@ using std::mutex;
 namespace pyfrost {
 
 KmerCounter::KmerCounter(size_t _k, size_t _g, bool _canonical, size_t _num_threads, size_t _table_bits,
-    size_t _read_block_size) :
-    k(_k), g(_g), canonical(_canonical), num_threads(_num_threads), read_block_size(_read_block_size),
+    size_t _batch_size) :
+    k(_k), g(_g), canonical(_canonical), num_threads(_num_threads), batch_size(_batch_size),
     tables(1 << _table_bits), table_locks(1 << _table_bits),
     num_kmers(0), num_unique(0), max_count(0), finished_reading(false)
 {
@@ -23,7 +23,7 @@ KmerCounter::KmerCounter(size_t _k, size_t _g, bool _canonical, size_t _num_thre
 }
 
 KmerCounter::KmerCounter(KmerCounter const& o) :
-    k(o.k), g(o.g), canonical(o.canonical), num_threads(o.num_threads), read_block_size(o.read_block_size),
+    k(o.k), g(o.g), canonical(o.canonical), num_threads(o.num_threads), batch_size(o.batch_size),
     tables(o.tables), table_locks(tables.size()), num_kmers(o.num_kmers.load()), num_unique(o.num_unique.load()),
     max_count(o.max_count.load()), finished_reading(o.finished_reading.load())
 {
@@ -31,7 +31,7 @@ KmerCounter::KmerCounter(KmerCounter const& o) :
 }
 
 KmerCounter::KmerCounter(KmerCounter&& o) :
-    k(o.k), g(o.g), canonical(o.canonical), num_threads(o.num_threads), read_block_size(o.read_block_size),
+    k(o.k), g(o.g), canonical(o.canonical), num_threads(o.num_threads), batch_size(o.batch_size),
     tables(std::move(o.tables)), table_locks(tables.size()), num_kmers(o.num_kmers.load()),
     num_unique(o.num_unique.load()), max_count(o.max_count.load()), finished_reading(o.finished_reading.load())
 {
@@ -71,7 +71,9 @@ void KmerCounter::setKmerGmer() {
 KmerCounter& KmerCounter::countKmers(std::string const& str)
 {
     unique_lock<mutex> guard(queue_lock);
-    seq_queue.emplace(str);
+    auto sequences = make_unique<vector<string>>();
+    sequences->emplace_back(str);
+    seq_queue.emplace(std::move(sequences));
     guard.unlock();
     finished_reading = true;
 
@@ -95,40 +97,37 @@ KmerCounter& KmerCounter::countKmersFiles(std::vector<std::string> const& files)
     std::thread reader_thread([&] () {
         FileParser fp(files);
 
-        std::vector<string> sequences;
+        auto sequences = make_unique<vector<string>>();
+        sequences->reserve(batch_size);
+
         string sequence;
         size_t file_ix = 0;
-        size_t nucleotides_read = 0;
+        size_t num_read = 0;
         while(fp.read(sequence, file_ix)) {
-            nucleotides_read += sequence.size();
-            sequences.emplace_back(sequence);
+            ++num_read;
+            sequences->emplace_back(sequence);
 
-            if(nucleotides_read >= read_block_size) {
+            if(num_read >= batch_size) {
                 // When enough data read, push sequences on the queue. This way we don't have to lock the queue that
                 // often.
                 unique_lock<mutex> guard(queue_lock);
-                for(auto& seq : sequences) {
-                    seq_queue.emplace(std::move(seq));
-                }
+                seq_queue.emplace(std::move(sequences));
                 guard.unlock();
 
-                sequences.clear();
-                nucleotides_read = 0;
+                sequences = make_unique<vector<string>>();
+                sequences->reserve(batch_size);
+                num_read = 0;
                 sequence_ready.notify_one();
             }
         }
 
         // Push remaining sequences on the queue
-        if(!sequences.empty()) {
+        if(!sequences->empty()) {
             unique_lock<mutex> guard(queue_lock);
-            for(auto& seq : sequences) {
-                seq_queue.emplace(std::move(seq));
-            }
+            seq_queue.emplace(std::move(sequences));
             guard.unlock();
 
-            sequences.clear();
             sequence_ready.notify_one();
-
         }
 
         finished_reading = true;
@@ -157,15 +156,11 @@ void KmerCounter::counterThread()
         }
 
         // Obtain block of sequences to count
-        vector<string> sequences;
-        size_t nucleotides_read = 0;
-        while(nucleotides_read < read_block_size && !seq_queue.empty()) {
-            sequences.emplace_back(std::move(seq_queue.front()));
-            seq_queue.pop();
-        }
+        unique_ptr<vector<string>> sequences = move(seq_queue.front());
+        seq_queue.pop();
         guard.unlock();
 
-        for(auto& sequence : sequences) {
+        for(auto const& sequence : *sequences) {
             KmerIterator kmer_iter(sequence.c_str()), kmer_end;
             minHashIterator<RepHash> it_min(sequence.c_str(), sequence.size(), Kmer::k, Minimizer::g, RepHash(), true);
 
@@ -249,7 +244,7 @@ void define_KmerCounter(py::module& m) {
     auto py_KmerCounter = py::class_<KmerCounter>(m, "KmerCounter")
         .def(py::init<size_t, size_t, bool, size_t, size_t, size_t>(),
             py::arg("k"), py::arg("g") = 0, py::arg("canonical") = true,
-            py::arg("num_threads") = 2, py::arg("table_bits") = 10, py::arg("read_block_size") = (1 << 20))
+            py::arg("num_threads") = 2, py::arg("table_bits") = 10, py::arg("batch_size") = (1 << 20))
         .def("count_kmers", &KmerCounter::countKmers)
         .def("count_kmers_files", &KmerCounter::countKmersFiles)
         .def("query", py::overload_cast<Kmer const&>(&KmerCounter::query, py::const_))
