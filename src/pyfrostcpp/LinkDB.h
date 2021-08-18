@@ -2,6 +2,8 @@
 #define PYFROST_LINKDB_H
 
 #include <string>
+#include <thread>
+#include <queue>
 #include <robin_hood.h>
 
 #include "pyfrost.h"
@@ -167,6 +169,84 @@ void addLinksFromSequence(T& graph, LinkDB& db, const std::string& sequence)
 
         }
     }
+}
+
+/**
+ * Read sequences from a file and add them as links
+ */
+template<typename T>
+void addLinksFromFile(T& graph, LinkDB& db, vector<string> const& filepaths, size_t batch_size=1e5) {
+    atomic<bool> finished_reading(false);
+    mutex queue_lock;
+    queue<unique_ptr<vector<string>>> seq_blocks;
+    condition_variable sequences_ready;
+
+    thread link_creator_thread([&] () {
+        while(true) {
+            unique_lock<mutex> guard(queue_lock);
+            sequences_ready.wait(guard, [&] () { return !seq_blocks.empty() || finished_reading; });
+
+            if(seq_blocks.empty() && finished_reading) {
+                cerr << "link_creator_thread :: finished.\n" << std::flush;
+                return;
+            }
+
+            unique_ptr<vector<string>> sequences = std::move(seq_blocks.front());
+            seq_blocks.pop();
+            guard.unlock();
+
+            for(string const& seq : *sequences) {
+                addLinksFromSequence(graph, db, seq);
+            }
+
+            cerr << "link_creator_thread :: processed block of " << sequences->size() << " sequences.\n" << flush;
+
+        }
+    });
+
+    thread reader_thread([&] () {
+        FileParser fp(filepaths);
+
+        auto sequences = make_unique<vector<string>>();
+        sequences->reserve(batch_size);
+        string sequence;
+        size_t file_ix = 0;
+        size_t num_read = 0;
+        while(fp.read(sequence, file_ix)) {
+            ++num_read;
+            sequences->emplace_back(sequence);
+
+            if(num_read >= batch_size) {
+                // When enough data read, push sequences on the queue. This way we don't have to lock the queue that
+                // often.
+                unique_lock<mutex> guard(queue_lock);
+                cerr << "reader_thread :: read block of " << sequences->size() << " sequences.\n" << flush;
+                seq_blocks.emplace(std::move(sequences));
+                guard.unlock();
+
+                sequences = make_unique<vector<string>>();
+                sequences->reserve(batch_size);
+                num_read = 0;
+                sequences_ready.notify_one();
+            }
+        }
+
+        // Push remaining sequences on the queue
+        if(!sequences->empty()) {
+            unique_lock<mutex> guard(queue_lock);
+            cerr << "reader_thread :: read block of " << sequences->size() << " sequences.\n" << flush;
+            seq_blocks.emplace(std::move(sequences));
+            guard.unlock();
+
+            sequences_ready.notify_one();
+        }
+
+        finished_reading = true;
+        sequences_ready.notify_all();
+    });
+
+    link_creator_thread.join();
+    reader_thread.join();
 }
 
 }
