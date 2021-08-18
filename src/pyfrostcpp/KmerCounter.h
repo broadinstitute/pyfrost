@@ -17,6 +17,7 @@
 
 #include "pyfrost.h"
 #include "Kmer.h"
+#include "Serialize.h"
 
 #include <queue>
 #include <thread>
@@ -161,10 +162,26 @@ public:
     std::vector<uint64_t> getFrequencySpectrum();
 
     template<typename Archive>
-    void save(Archive& ar) const;
+    void save(Archive& ar) const {
+        ar(k, g, canonical, tables, num_kmers.load(), num_unique.load(), max_count.load());
+    }
 
     template<typename Archive>
-    void load(Archive& ar);
+    void load(Archive& ar) {
+        ar(k, g, canonical);
+        setKmerGmer();
+
+        size_t _num_kmers = 0;
+        size_t _num_unique = 0;
+        kmercount_t _max_count = 0;
+        ar(tables, _num_kmers, _num_unique, _max_count);
+
+        num_kmers = _num_kmers;
+        num_unique = _num_unique;
+        max_count = _max_count;
+
+        table_locks = vector<mutex>(tables.size());
+    }
 
     KmerCounterIterator begin() {
         return {tables.begin(), tables.end()};
@@ -200,9 +217,5 @@ private:
 void define_KmerCounter(py::module& m);
 
 }
-
-
-
-
 
 #endif //PYFROST_KMERCOUNTER_H

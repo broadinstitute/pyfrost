@@ -1,8 +1,10 @@
 #ifndef PYFROST_JUNCTIONTREE_H
 #define PYFROST_JUNCTIONTREE_H
 
-#include "Kmer.h"
 #include <robin_hood.h>
+
+#include "Kmer.h"
+#include "Serialize.h"
 
 namespace pyfrost {
 
@@ -26,6 +28,11 @@ public:
 
     void prune(size_t threshold);
     size_t getCount() const;
+
+    template<typename Archive>
+    void serialize(Archive& ar) {
+        ar(parent_edge, parent, count, children);
+    }
 
 private:
     void increment();

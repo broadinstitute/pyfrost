@@ -4,6 +4,7 @@
 #include "pyfrost.h"
 #include "JunctionTree.h"
 #include "LinkDB.h"
+#include "Serialize.h"
 
 namespace pyfrost {
 
@@ -30,6 +31,11 @@ public:
     }
 
     std::shared_ptr<JunctionTreeNode> createOrGetTree(Kmer const& kmer) override;
+
+    template<typename Archive>
+    void serialize(Archive& ar) {
+        ar(junction_trees);
+    }
 
 private:
     /// A map which stores the junction trees associated with each k-mer

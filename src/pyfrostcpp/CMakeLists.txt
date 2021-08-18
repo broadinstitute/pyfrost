@@ -22,6 +22,7 @@ pybind11_add_module(pyfrostcpp
         LinkDB.cpp
         MemLinkDB.h
         MemLinkDB.cpp
+        Serialize.h
         pyfrost.h
         pyfrost.cpp
         )

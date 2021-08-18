@@ -1,5 +1,7 @@
 #include "MemLinkDB.h"
 
+#include <cereal/archives/binary.hpp>
+
 namespace pyfrost {
 
 std::shared_ptr<JunctionTreeNode> MemLinkDB::createOrGetTree(Kmer const &kmer) {
@@ -34,7 +36,23 @@ void define_MemLinkDB(py::module& m) {
         })
         .def("__iter__", [] (MemLinkDB& self) {
             return py::make_key_iterator(self.getJunctionTrees().begin(), self.getJunctionTrees().end());
-        }, py::keep_alive<0, 1>());
+        }, py::keep_alive<0, 1>())
+
+        .def("save", [] (MemLinkDB& self, string const& filepath) {
+            std::ofstream ofile(filepath);
+            cereal::BinaryOutputArchive archive(ofile);
+
+            archive(cereal::make_nvp("memlinkdb", self));
+        })
+        .def_static("from_file", [] (string const& filepath) {
+            MemLinkDB linkdb;
+
+            std::ifstream ifile(filepath);
+            cereal::BinaryInputArchive archive(ifile);
+
+            archive(linkdb);
+            return linkdb;
+        });
 
     auto Mapping = py::module::import("collections.abc").attr("Mapping");
     auto Set = py::module::import("collections.abc").attr("Set");

@@ -1,10 +1,7 @@
-#include <thread>
-#include <cereal/cereal.hpp>
-#include <cereal/archives/binary.hpp>
-#include <cereal/types/vector.hpp>
-#include <cereal/types/string.hpp>
-
 #include "KmerCounter.h"
+
+#include <thread>
+#include <cereal/archives/binary.hpp>
 
 using std::vector;
 using std::string;
@@ -247,28 +244,6 @@ std::vector<uint64_t> KmerCounter::getFrequencySpectrum()
     return spectrum;
 }
 
-template<typename Archive>
-void KmerCounter::save(Archive& ar) const {
-    ar(k, g, canonical, tables, num_kmers.load(), num_unique.load(), max_count.load());
-}
-
-template<typename Archive>
-void KmerCounter::load(Archive& ar) {
-    ar(k, g, canonical);
-    setKmerGmer();
-
-    size_t _num_kmers = 0;
-    size_t _num_unique = 0;
-    kmercount_t _max_count = 0;
-    ar(tables, _num_kmers, _num_unique, _max_count);
-
-    num_kmers = _num_kmers;
-    num_unique = _num_unique;
-    max_count = _max_count;
-
-    table_locks = vector<mutex>(tables.size());
-}
-
 
 void define_KmerCounter(py::module& m) {
     auto py_KmerCounter = py::class_<KmerCounter>(m, "KmerCounter")
@@ -326,55 +301,4 @@ void define_KmerCounter(py::module& m) {
     py_KmerCounter.attr("__bases__") = py::make_tuple(Mapping, Set).attr("__add__")(py_KmerCounter.attr("__bases__"));
 }
 
-}
-
-
-//
-// Cereal support
-// --------------
-// Make sure we can serialize Kmer objects and the robin_hood unordered_map
-//
-
-template<typename Archive>
-std::string save_minimal(Archive& ar, Kmer const& kmer)
-{
-    stringstream bytes;
-    kmer.write(bytes);
-
-    return bytes.str();
-}
-
-template<typename Archive>
-void load_minimal(Archive& ar, Kmer& kmer, std::string const& value)
-{
-    istringstream stream(value);
-    kmer.read(stream);
-}
-
-template<typename Archive, typename K, typename V, typename C, typename A>
-void save(Archive& ar, robin_hood::unordered_map<K, V, C, A> const& map)
-{
-    ar(map.size());
-    for(auto const& e : map) {
-        ar(e.first, e.second);
-    }
-}
-
-template<typename Archive, typename K, typename V, typename C, typename A>
-void load(Archive& ar, robin_hood::unordered_map<K, V, C, A>& map)
-{
-    map.clear();
-
-    size_t num_entries;
-    ar(num_entries);
-    map.reserve(num_entries);
-
-    for(int i = 0; i < num_entries; ++i) {
-        K key;
-        V value;
-        ar(key);
-        ar(value);
-
-        map.emplace(std::move(key), std::move(value));
-    }
 }

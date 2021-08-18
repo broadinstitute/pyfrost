@@ -3,6 +3,7 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
+#include <cereal/cereal.hpp>
 
 #include "UnitigDataDict.h"
 
@@ -19,6 +20,23 @@ public:
     }
 };
 
+}
+
+// Cereal serialization support
+template<typename Archive>
+std::string save_minimal(Archive& ar, Kmer const& kmer)
+{
+    stringstream bytes;
+    kmer.write(bytes);
+
+    return bytes.str();
+}
+
+template<typename Archive>
+void load_minimal(Archive& ar, Kmer& kmer, std::string const& value)
+{
+    istringstream stream(value);
+    kmer.read(stream);
 }
 
 namespace py = pybind11;
