@@ -9,8 +9,10 @@ from typing import Union, Iterable
 
 import networkx
 
-from pyfrostcpp import PyfrostCCDBG, NodesDict, AdjacencyOuterDict, AdjacencyType, Kmer
+from pyfrostcpp import PyfrostCCDBG, NodesDict, NodeDataDict, AdjacencyOuterDict, AdjacencyType, Kmer
 from pyfrost.views import PyfrostAdjacencyView, PyfrostNodeView
+
+__all__ = ['BifrostDiGraph', 'NodesDict', 'NodeDataDict', 'AdjacencyOuterDict', 'AdjacencyType']
 
 
 def disable_factory_func():

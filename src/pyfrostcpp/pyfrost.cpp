@@ -13,6 +13,7 @@
 #include "JunctionTree.h"
 #include "LinkDB.h"
 #include "MemLinkDB.h"
+#include "LinkAnnotator.h"
 
 namespace py = pybind11;
 
@@ -23,17 +24,17 @@ std::ostream& operator<<(std::ostream& o, pyfrost::PyfrostColoredUMap const& u) 
 
 namespace pyfrost {
 
-NodeDataDict findUnitig(PyfrostCCDBG& g, Kmer const& kmer, bool extremities_only=false) {
+py::object findUnitig(PyfrostCCDBG& g, Kmer const& kmer, bool extremities_only=false) {
     auto unitig = g.find(kmer, extremities_only);
 
     if(unitig.isEmpty) {
-        throw py::value_error("Could not find k-mer in the graph.");
+        return py::none();
     }
 
-    return NodeDataDict(unitig);
+    return py::cast(NodeDataDict(unitig));
 }
 
-NodeDataDict findUnitig(PyfrostCCDBG& g, char const* kmer, bool extremities_only=false) {
+py::object findUnitig(PyfrostCCDBG& g, char const* kmer, bool extremities_only=false) {
     return findUnitig(g, Kmer(kmer), extremities_only);
 }
 
@@ -170,6 +171,7 @@ PYBIND11_MODULE(pyfrostcpp, m) {
     m.attr("default_k") = DEFAULT_K;
 
     py::bind_vector<std::vector<std::string>>(m, "StringVector");
+    py::bind_map<std::unordered_map<Kmer, size_t>>(m, "KmerSizeTMap");
     py::implicitly_convertible<py::list, std::vector<std::string>>();
 
     pyfrost::define_Kmer(m);
@@ -184,6 +186,8 @@ PYBIND11_MODULE(pyfrostcpp, m) {
     pyfrost::define_JunctionTreeNode(m);
     pyfrost::define_LinkDB(m);
     pyfrost::define_MemLinkDB(m);
+    pyfrost::define_LinkAnnotator(m);
+    pyfrost::define_MappingResult(m);
 
     m.def("load", &pyfrost::load,
           "Load an existing colored Bifrost graph from a file.");
