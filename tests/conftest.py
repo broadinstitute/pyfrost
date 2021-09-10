@@ -18,6 +18,6 @@ def mccortex2():
 @pytest.fixture
 def linked_mccortex(mccortex):
     linkdb = links.MemLinkDB()
-    links.add_links_from_sequence(mccortex, linkdb, "TTTCGATGCGATGCGATGCCACG")
+    links.add_links_from_single_sequence(mccortex, linkdb, "TTTCGATGCGATGCGATGCCACG")
 
     return mccortex, linkdb

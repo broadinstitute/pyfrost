@@ -27,6 +27,3 @@ def test_subgraph(mccortex):
         (Kmer('CGATG'), Kmer('ATGCC')),
         (Kmer('ATGCC'), Kmer('CCACC')),
     ]
-
-
-
