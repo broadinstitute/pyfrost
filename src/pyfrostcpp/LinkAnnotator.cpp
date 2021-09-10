@@ -13,7 +13,7 @@ void define_LinkAnnotator(py::module& m) {
     py::class_<RefLinkAnnotator<PyfrostCCDBG>, LinkAnnotator<PyfrostCCDBG>>(m, "RefLinkAnnotator")
         .def(py::init());
 
-    m.def("add_links_from_fasta", &addLinksFromFasta<PyfrostCCDBG>);
+    m.def("add_links_from_fasta", &addLinksFromFasta<PyfrostCCDBG>, py::call_guard<py::gil_scoped_release>());
 }
 
 void define_MappingResult(py::module& m) {

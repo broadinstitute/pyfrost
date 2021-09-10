@@ -189,12 +189,12 @@ PYBIND11_MODULE(pyfrostcpp, m) {
     pyfrost::define_LinkAnnotator(m);
     pyfrost::define_MappingResult(m);
 
-    m.def("load", &pyfrost::load,
+    m.def("load", &pyfrost::load, py::call_guard<py::gil_scoped_release>(),
           "Load an existing colored Bifrost graph from a file.");
-    m.def("build", &pyfrost::build,
+    m.def("build", &pyfrost::build, py::call_guard<py::gil_scoped_release>(),
           "Build a colored compacted Bifrost graph from references and sequencing data.");
     m.def("dump", &pyfrost::dump, py::arg("g"), py::arg("fname_prefix"), py::arg("num_threads") = 2,
-          "Save graph to file.");
+          py::call_guard<py::gil_scoped_release>(), "Save graph to file.");
 
     m.def("reverse_complement", py::overload_cast<char const*>(&reverse_complement),
         "Return the reverse complement of a DNA string");

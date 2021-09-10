@@ -169,8 +169,8 @@ void KmerCounter::counterThread()
                 Kmer kmer = canonical ? p.first.rep() : p.first;
                 ++num_kmers;
 
-                // Move minimizer position, also takes into account if one or more k-mer were jumped because contained
-                // non-ACGT char.
+                // Move minimizer position, also takes into account if one or more k-mers were skipped because they
+                // contained a non-ACGT char.
                 // Minimizer hash serves as hash table index
                 it_min += (p.second - it_min.getKmerPosition());
                 uint64_t minimizer_hash = it_min.getHash();
@@ -244,9 +244,9 @@ void define_KmerCounter(py::module& m) {
     auto py_KmerCounter = py::class_<KmerCounter>(m, "KmerCounter")
         .def(py::init<size_t, size_t, bool, size_t, size_t, size_t>(),
             py::arg("k"), py::arg("g") = 0, py::arg("canonical") = true,
-            py::arg("num_threads") = 2, py::arg("table_bits") = 10, py::arg("batch_size") = (1 << 20))
-        .def("count_kmers", &KmerCounter::countKmers)
-        .def("count_kmers_files", &KmerCounter::countKmersFiles)
+            py::arg("num_threads") = 2, py::arg("table_bits") = 10, py::arg("batch_size") = 100000)
+        .def("count_kmers", &KmerCounter::countKmers, py::call_guard<py::gil_scoped_release>())
+        .def("count_kmers_files", &KmerCounter::countKmersFiles, py::call_guard<py::gil_scoped_release>())
         .def("query", py::overload_cast<Kmer const&>(&KmerCounter::query, py::const_))
         .def("query", py::overload_cast<char const*>(&KmerCounter::query, py::const_))
 
