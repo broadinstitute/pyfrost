@@ -6,25 +6,142 @@ Think of building paths through the graph, depth-first search, etc.
 
 from __future__ import annotations
 import logging
-from dataclasses import dataclass, field
+import sys
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterable, Union, Optional
+from collections.abc import Callable, Sequence
 
 import networkx
 
+from pyfrost.seq import Kmer
 from pyfrost.links import jt
+from pyfrost.exceptions import PyfrostInvalidNodeError, PyfrostInvalidPathError, PyfrostLinkMismatchError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from pyfrost import BifrostDiGraph, Kmer
+    from pyfrost.graph import BifrostDiGraph, Node
     from pyfrost.links.db import LinkDB
 
-__all__ = ['oldest_link', 'link_supported_path_from', 'PickedUpLink']
+__all__ = ['follow_link', 'link_junction_edges', 'NavigationEngine', 'oldest_link', 'link_supported_path_from',
+           'PickedUpLink']
 
 logger = logging.getLogger(__name__)
 
 
+def follow_link(g: BifrostDiGraph, start_kmer: Kmer, link: jt.Link) -> Iterable[Kmer]:
+    """
+    Returns the path through the graph represented by `link`.
+
+    This differs from `link_supported_path` in that it just follows one link, and stops when `link` doesn't provide
+    any junction choices anymore. `link_supported_path` can pickup multiple other links on the way, and only stops
+    when there's ambiguity.
+
+    Parameters
+    ----------
+    g : BifrostDiGraph
+        The graph to navigate
+    start_kmer : Kmer
+        From which node the link starts
+    link : jt.Link
+        The link to follow
+
+    Yields
+    ------
+    Kmer
+        Nodes visited by following `link`.
+    """
+
+    start_unitig = g.find(start_kmer)
+    if not start_unitig:
+        raise networkx.NodeNotFound(f"Could not find start kmer '{start_kmer}'")
+
+    curr_node = start_unitig['head']
+    pos = 0
+    while pos < len(link.choices):
+        yield curr_node
+
+        # Find neighbor
+        if g.out_degree[curr_node] > 1:
+            neighbors = {
+                str(neighbor)[-1]: neighbor for neighbor in g.neighbors(curr_node)
+            }
+            choice = link.choices[pos]
+            if choice not in neighbors:
+                raise PyfrostLinkMismatchError(
+                    f"Link junction choice is not a valid neighbor in the graph! Are links and graph mismatched?\n"
+                    f"Current node: {curr_node}, junction choice: {choice}, neighbors: {neighbors}"
+                )
+
+            curr_node = neighbors[choice]
+            pos += 1
+        elif g.out_degree[curr_node] == 1:
+            curr_node = next(g.neighbors(curr_node))
+        else:
+            if len(link.choices) - pos > 1:
+                logger.warning(f"Link has remaining junction choices but no outgoing edges available for node "
+                               f"{curr_node}")
+
+            return
+
+
+EdgeWithCov = tuple[tuple[Kmer, Kmer], int]
+
+
+def link_junction_edges(g: BifrostDiGraph, start_kmer: Kmer, link: jt.Link) -> Iterable[EdgeWithCov]:
+    """
+    Returns the edges taken represented by the junction choices encoded in a link.
+
+    Parameters
+    ----------
+    g : BifrostDiGraph
+        The graph to navigate
+    start_kmer : Kmer
+        From which node the link starts
+    link : jt.Link
+        The link to follow
+
+    Yields
+    ------
+    tuple[tuple[Kmer, Kmer], int]
+        Tuple with the edge (head, tail), and the link coverage of the edge.
+    """
+
+    start_unitig = g.find(start_kmer)
+    if not start_unitig:
+        raise PyfrostInvalidNodeError(f"Could not find start kmer '{start_kmer}'")
+
+    curr_node = start_unitig['head']
+    pos = 0
+    while pos < len(link.choices):
+        print("Current node:", curr_node, file=sys.stderr)
+        # Find neighbor
+        if g.out_degree[curr_node] > 1:
+            neighbors = {
+                str(neighbor)[-1]: neighbor for neighbor in g.neighbors(curr_node)
+            }
+            choice = link.choices[pos]
+            if choice not in neighbors:
+                raise PyfrostLinkMismatchError(
+                    f"Link junction choice is not a valid neighbor in the graph! Are links and graph mismatched?\n"
+                    f"Current node: {curr_node}, junction choice: {choice}, neighbors: {neighbors}"
+                )
+
+            yield (curr_node, neighbors[choice]), link.coverage[pos]
+
+            curr_node = neighbors[choice]
+            pos += 1
+        elif g.out_degree[curr_node] == 1:
+            curr_node = next(g.neighbors(curr_node))
+        else:
+            if len(link.choices) - pos > 1:
+                logger.warning(f"Link has remaining junction choices but no outgoing edges available for node "
+                               f"{curr_node}")
+
+            return
+
+
 @dataclass
 class PickedUpLink:
+    source: Kmer
     dist: int
     link: jt.Link
     pos: int
@@ -101,115 +218,182 @@ def oldest_link(picked_up_links: list[PickedUpLink]) -> Optional[str]:
         logger.debug("Multiple oldest links: %s, halting navigation.", oldest_links)
 
 
-def link_supported_path_from(G: BifrostDiGraph, linkdb: LinkDB, source: Union[Kmer, str],
-                             strategy: Callable[[list[PickedUpLink]], Optional[str]]=oldest_link,
-                             distance_limit: int=None, stop_unitig: Optional[Kmer]=None) -> Iterable[Kmer]:
+Strategy = Callable[[list[PickedUpLink]], Optional[str]]
+
+
+class NavigationEngine:
     """
-    Builds the longest contiguous path possible as supported by the links. Halts at branch point where the links don't
-    provide a clear choice.
-
-    Optionally, you can specify the maximum length of the path (in number of *kmers*, not unitigs), and the
-    algorithm will halt when that distance is reached.
-
-    Parameters
-    ----------
-    G : BifrostDiGraph
-        The compacted colored De Bruijn graph to navigate
-    linkdb : LinkDB
-        Database with link information
-    source : Kmer, str
-        Source node to build path from
-    strategy : callable
-        A function that decides which junction choices are supported by the links. The default is to pick the branch
-        that is supported by the oldest link.
-    distance_limit : int, optional
-        Maximum path length in k-mers
-    stop_unitig : Kmer, optional
-        Stop traversal when reaching the given unitig.
-
-    Yields
-    ------
-    Kmer
-        Nodes along the path from source, including the source node itself
+    This class implements all the logic to traverse a graph with support from links
     """
 
-    if isinstance(source, str):
-        source = Kmer(source)
+    def __init__(self, g: BifrostDiGraph, linkdb: LinkDB, link_color: int = None, strategy: Strategy = None):
+        self.g: BifrostDiGraph = g
+        self.linkdb: LinkDB = linkdb
+        self.link_color: int = link_color
 
-    if not source in G:
-        raise networkx.NetworkXError(f"Node '{source}' not found in the graph")
+        self.strategy = strategy if strategy else oldest_link
 
-    picked_up_links: list[PickedUpLink] = []
+        self.picked_up_links: list[PickedUpLink] = []
+        self.used_links: set[tuple[Kmer, str]] = set()
 
-    next_node = source, 0
-    while next_node:
-        n, distance = next_node
-        ndata = G.nodes[n]
-        unitig_size = ndata['length']
-        tail = ndata['tail']
-        logger.debug("Current node: %s (tail: %s)", n, tail)
-        yield n
+    def _pick_up_links(self, node: Kmer, tail: Kmer):
+        if tail not in self.linkdb:
+            return
 
-        if n == stop_unitig:
-            break
+        # New links should at least provide more information than the current oldest
+        min_length = self.picked_up_links[0].remaining() + 1 if self.picked_up_links else None
+        to_add = []
+        for link in jt.get_all_links(self.linkdb[tail], min_length):
+            # Only use each link once
+            if (tail, link.choices) in self.used_links:
+                continue
 
-        # Pick up any links associated with this node
-        if tail in linkdb:
-            # New links should at least provide more information than the current oldest
-            min_length = picked_up_links[0].remaining() + 1 if picked_up_links else None
+            to_add.append(PickedUpLink(node, 0, link, 0))
+            self.used_links.add((tail, link.choices))
 
-            to_add = [PickedUpLink(0, link, 0) for link in jt.pick_up_links(linkdb[tail], min_length)]
-            picked_up_links.extend(sorted(to_add, reverse=True))
+        logger.debug("Picked up %d links", len(to_add))
+        self.picked_up_links.extend(sorted(to_add, reverse=True))
 
-        # Key neighbors by the nucleotide added
-        neighbors_dict = {
-            str(neighbor)[-1]: neighbor for neighbor in G[n]
-        }
-
+    def _find_next_node(self, curr_node: Kmer, neighbors_dict: dict[str, Kmer]):
         # Which neighbors are supported by the links?
         if len(neighbors_dict) == 0:
-            next_node = None  # No neighbors anymore, quit
+            return
         elif len(neighbors_dict) == 1:
             neighbor = next(iter(neighbors_dict.values()))
-            next_node = neighbor, distance + unitig_size
-            increase_distances(picked_up_links, unitig_size)
+            if neighbor == curr_node:
+                logger.debug("The only successor of %s is itself, stopping to prevent infinite loop", curr_node)
+                return
+            else:
+                return neighbor
         else:
-            choice = strategy(picked_up_links)
+            choice = self.strategy(self.picked_up_links)
 
             if choice:
                 if choice not in neighbors_dict:
-                    raise ValueError(
-                        f"Mismatched graph and links! Current node: {n!r} (tail: {tail})\nNeighbors: {neighbors_dict}\n"
-                        f"Link choice: {choice}\nPicked up links: {picked_up_links}"
+                    raise PyfrostLinkMismatchError(
+                        f"Mismatched graph and links! Current node: {curr_node!r}\nNeighbors:"
+                        f" {neighbors_dict}\nLink choice: {choice}\nPicked up links: {self.picked_up_links}"
                     )
 
                 neighbor = neighbors_dict[choice]
-                next_node = neighbor, distance + unitig_size
-                picked_up_links = move_and_prune_links(picked_up_links, choice)
-                increase_distances(picked_up_links, unitig_size)
+                return neighbor
+
+    def traverse(self, source: Union[Node, Sequence[Node]], distance_limit: int = None,
+                 stop_unitig: Union[Kmer, set[Kmer]] = None) -> Iterable[Kmer]:
+        """
+        Builds the longest contiguous path possible as supported by the links. Halts at branch point where the links
+        don't provide a clear choice.
+
+        Optionally, you can specify the maximum length of the path (in number of *kmers*, not unitigs), and the
+        algorithm will halt when that distance is reached.
+
+        Parameters
+        ----------
+        source : Kmer, str, list[Kmer], list[str]
+            Source node to build path from. Additionally, you can specify an existing path as source. The algorithm
+            will pickup any links along that path, to gain as much "link context", which will aid in traversal beyond
+            the end of the given path.
+        distance_limit : int, optional
+            Maximum path length in k-mers, excludes any source nodes
+        stop_unitig : Kmer, set[Kmer], optional
+            Stop traversal when reaching the given unitig.
+
+        Yields
+        ------
+        Kmer
+            Nodes along the path from source, excluding the source node(s) itself
+        """
+
+        if not isinstance(source, Sequence):
+            source = [source]
+
+        source = [Kmer(n) if not isinstance(n, Kmer) else n for n in source]
+
+        if not stop_unitig:
+            stop_unitig = set()
+        elif not isinstance(stop_unitig, set):
+            stop_unitig = {stop_unitig}
+
+        self.picked_up_links = []
+        self.used_links = set()
+
+        n = source[0]
+        ndata = self.g.nodes[n]
+        source_ix = 0
+        curr_dist = 0
+        while n:
+            tail = ndata['tail']
+            logger.debug("Current node: %s (tail: %s)", n, tail)
+
+            # Pick up any links associated with this node
+            self._pick_up_links(n, tail)
+
+            # Key neighbors by the nucleotide added
+            neighbors_dict = {
+                str(neighbor)[-1]: neighbor for neighbor in self.g.color_restricted_successors(n, self.link_color)
+            }
+
+            # Follow source path first before using the links
+            if source_ix < len(source) - 1:
+                source_ix += 1
+                choice = str(source[source_ix])[-1]
+
+                if choice not in neighbors_dict:
+                    raise PyfrostInvalidPathError(
+                        f"Given source path is not a valid path through the graph!\n"
+                        f"Current node: {n}, neighbors: {neighbors_dict}, expected neighbor: {choice} "
+                        f"({source[source_ix]})."
+                    )
+
+                n = source[source_ix]
+                ndata = self.g.nodes[n]
+
+                if len(neighbors_dict) > 1:
+                    self._move_and_prune_links(choice)
+
+                self._increase_distances(ndata['length'])
             else:
-                # No oldest link found, or multiple supported choices. We stop.
-                next_node = None
+                n = self._find_next_node(n, neighbors_dict)
+                if n:
+                    ndata = self.g.nodes[n]
+                    curr_dist += ndata['length']
 
-        # Quit if too far from source
-        if distance_limit is not None and next_node is not None:
-            if next_node[1] >= distance_limit:
-                next_node = None
+                    if len(neighbors_dict) > 1:
+                        self._move_and_prune_links(str(n)[-1])
+
+                    self._increase_distances(ndata['length'])
+
+                    if distance_limit and curr_dist > distance_limit:
+                        n = None
+                    else:
+                        yield n
+
+                    if n in stop_unitig:
+                        n = None
+
+    def _increase_distances(self, dist: int):
+        for picked_up_link in self.picked_up_links:
+            picked_up_link.add_dist(dist)
+
+    def _move_and_prune_links(self, choice: str):
+        new_picked_up_links: list[PickedUpLink] = []
+        for picked_up_link in self.picked_up_links:
+            if picked_up_link.pos + 1 >= len(picked_up_link.link.choices) or picked_up_link.current_choice() != choice:
+                # End of link or incompatible with junction choice
+                continue
+
+            picked_up_link.inc_pos()
+            new_picked_up_links.append(picked_up_link)
+
+        self.picked_up_links = new_picked_up_links
 
 
-def increase_distances(picked_up_links: list[PickedUpLink], dist: int):
-    for picked_up_link in picked_up_links:
-        picked_up_link.add_dist(dist)
+def link_supported_path_from(g: BifrostDiGraph, linkdb: LinkDB, source: Union[Node, Sequence[Node]],
+                             link_color: int = None, distance_limit: int = None,
+                             stop_unitig: Union[Kmer, set[Kmer]] = None) -> Iterable[Kmer]:
+    """
+    Shortcut for building a link supported path with default navigation settings and strategy.
+    """
 
-
-def move_and_prune_links(picked_up_links: list[PickedUpLink], choice: str) -> list[PickedUpLink]:
-    new_picked_up_links: list[PickedUpLink] = []
-    for picked_up_link in picked_up_links:
-        if picked_up_link.pos + 1 >= len(picked_up_link.link.choices) or picked_up_link.current_choice() != choice:
-            # End of link or incompatible with junction choice
-            continue
-
-        picked_up_link.inc_pos()
-        new_picked_up_links.append(picked_up_link)
-
-    return new_picked_up_links
+    engine = NavigationEngine(g, linkdb, link_color)
+    yield from engine.traverse(source, distance_limit, stop_unitig)
