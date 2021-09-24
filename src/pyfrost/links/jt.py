@@ -18,7 +18,7 @@ import numpy
 if TYPE_CHECKING:
     from pyfrostcpp import JunctionTreeNode
 
-__all__ = ['preorder', 'postorder', 'bfs', 'junction_choices', 'junction_coverages', 'Link', 'pick_up_links']
+__all__ = ['preorder', 'postorder', 'bfs',  'Link', 'get_all_links']
 
 
 def preorder(jt: JunctionTreeNode, with_depth=False) -> Iterable[JunctionTreeNode]:
@@ -86,60 +86,32 @@ def bfs(jt: JunctionTreeNode) -> Iterable[JunctionTreeNode]:
             queue.append(c)
 
 
-def junction_choices(jt: JunctionTreeNode) -> str:
-    """
-    Get junction choices that lead to the given tree node represented as a string.
-
-    Parameters
-    ----------
-    jt : JunctionTreeNode
-        The node in the tree for which to obtain all junction choices. Usually this is a leaf node.
-
-    Returns
-    -------
-    str
-        Each nucleotide in the returned string represents a junction choice.
-    """
-
-    choices = []
-    curr = jt
-    while curr.parent_edge:
-        choices.append(curr.parent_edge)
-        curr = curr.parent
-
-    return "".join(reversed(choices))
-
-
-def junction_coverages(jt: JunctionTreeNode) -> numpy.ndarray:
-    covs = []
-    curr = jt
-    while curr.parent_edge:
-        covs.append(curr.count)
-        curr = curr.parent
-
-    covs.reverse()
-    return numpy.array(covs, dtype=numpy.uint16)
-
-
 @total_ordering
 class Link(NamedTuple):
+    node: JunctionTreeNode
     choices: str
     coverage: numpy.ndarray
+
+    def __eq__(self, other):
+        if not isinstance(other, Link):
+            raise NotImplemented
+
+        return self.choices == other.choices
 
     def __lt__(self, other: Link):
         if not isinstance(other, Link):
             raise NotImplemented
 
-        return (self.coverage, self.choices) < (other.coverage, other.choices)
+        return (self.coverage[0], len(self.choices)) < (other.coverage[0], len(other.choices))
 
     def __le__(self, other: Link):
         if not isinstance(other, Link):
             raise NotImplemented
 
-        return (self.coverage, self.choices) <= (other.coverage, other.choices)
+        return (self.coverage[0], len(self.choices)) <= (other.coverage[0], len(other.choices))
 
 
-def pick_up_links(jt: JunctionTreeNode, min_length: int=None) -> Iterable[Link]:
+def get_all_links(jt: JunctionTreeNode, min_length: int=None) -> Iterable[Link]:
     """
     Yield each link in a junction tree.
 
@@ -162,8 +134,8 @@ def pick_up_links(jt: JunctionTreeNode, min_length: int=None) -> Iterable[Link]:
     if with_depth:
         for node, depth in preorder(jt, with_depth):
             if node.is_leaf() and depth >= min_length:
-                yield Link(junction_choices(node), junction_coverages(node))
+                yield Link(node, node.junction_choices(), node.coverages())
     else:
         for node in preorder(jt):
             if node.is_leaf():
-                yield Link(junction_choices(node), junction_coverages(node))
+                yield Link(node, node.junction_choices(), node.coverages())
