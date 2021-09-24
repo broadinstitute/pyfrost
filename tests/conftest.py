@@ -1,7 +1,11 @@
 import pytest
+import logging
 
 import pyfrost
 from pyfrost import links
+
+logging.basicConfig()
+logging.getLogger('pyfrost').setLevel(logging.DEBUG)
 
 
 @pytest.fixture(scope="module")

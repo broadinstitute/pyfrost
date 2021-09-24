@@ -50,7 +50,7 @@ def test_add_links(linked_mccortex):
         all_choices = set()
         for node in links.jt.postorder(tree):
             if node.is_leaf():
-                choices = links.jt.junction_choices(node)
+                choices = node.junction_choices()
                 all_choices.add(choices)
 
         print(kmer, all_choices, file=sys.stderr)
@@ -63,9 +63,9 @@ def test_mapping_result(mccortex):
     result = links.add_links_from_single_sequence(g, linkdb, "TTTCGATGCGATGCGATGCCACG")
     matches = result.matching_kmers()
     assert numpy.all(matches)
-    assert result.num_junctions == 5
-    assert result.start_unitig == Kmer("ACTGA")
-    assert result.end_unitig == Kmer("CCACG")
+    assert result.junctions == "TGGCG"
+    assert result.start_unitig() == Kmer("ACTGA")
+    assert result.end_unitig() == Kmer("CCACG")
     assert result.mapping_start == 0
     assert result.mapping_end == len(matches) - 1
     assert result.unitig_visits[Kmer("ATGCG")] == 2
@@ -78,9 +78,9 @@ def test_mapping_result(mccortex):
     matches = result.matching_kmers()
     assert numpy.all(matches[:-3])
     assert not numpy.any(matches[-3:])
-    assert result.num_junctions == 5
-    assert result.start_unitig == Kmer("ACTGA")
-    assert result.end_unitig == Kmer("CCACG")
+    assert result.junctions == "TGGCG"
+    assert result.start_unitig() == Kmer("ACTGA")
+    assert result.end_unitig() == Kmer("CCACG")
     assert result.mapping_start == 0
     assert result.mapping_end == len(matches) - 4
 
@@ -103,7 +103,7 @@ def test_link_paired_read_same_unitig(mccortex):
         all_choices = set()
         for node in links.jt.preorder(jt):
             if node.is_leaf():
-                choices = links.jt.junction_choices(node)
+                choices = node.junction_choices()
                 all_choices.add(choices)
         print(kmer, all_choices, file=sys.stderr)
         assert all_choices == known_links.get(kmer, set())
@@ -128,7 +128,7 @@ def test_link_paired_read_on_repeat(mccortex):
         all_choices = set()
         for node in links.jt.preorder(jt):
             if node.is_leaf():
-                choices = links.jt.junction_choices(node)
+                choices = node.junction_choices()
                 all_choices.add(choices)
         print(kmer, all_choices, file=sys.stderr)
         assert all_choices == known_links.get(kmer, set())
@@ -139,7 +139,6 @@ def test_navigate_with_links(linked_mccortex):
 
     path = list(links.link_supported_path_from(g, mem_link_db, Kmer("ACTGA")))
     assert path == [
-        Kmer("ACTGA"),
         Kmer("TCGAT"),
         Kmer("CGATG"),
         Kmer("ATGCG"),
@@ -159,7 +158,6 @@ def test_navigation_conflicting_links(linked_mccortex):
 
     path = list(links.link_supported_path_from(g, mem_link_db, Kmer("ACTGA")))
     assert path == [
-        Kmer("ACTGA"),
         Kmer("TCGAT"),
         Kmer("CGATG")
     ]
@@ -184,7 +182,7 @@ def test_memlinkdb_file_load_save(linked_mccortex, tmp_path):
         all_choices = set()
         for node in links.jt.postorder(tree):
             if node.is_leaf():
-                choices = links.jt.junction_choices(node)
+                choices = node.junction_choices()
                 all_choices.add(choices)
 
         assert all_choices == known_links.get(kmer, set())
@@ -207,7 +205,7 @@ def test_links_from_file(mccortex):
         all_choices = set()
         for node in links.jt.postorder(tree):
             if node.is_leaf():
-                choices = links.jt.junction_choices(node)
+                choices = node.junction_choices()
                 all_choices.add(choices)
 
         assert all_choices == known_links.get(kmer, set())
