@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Union, Type, NamedTuple, Optional, TextIO
+from typing import TYPE_CHECKING, Union, Type, NamedTuple, TextIO
 
 import numpy
 import pyfrostcpp
@@ -53,8 +53,8 @@ class ReadMappingResult(NamedTuple):
 
 
 class PairedReadMappingResult(NamedTuple):
-    forward: tuple[MappingResult, Optional[MappingResult], PairedAnnotationResult]
-    reverse: tuple[MappingResult, Optional[MappingResult], PairedAnnotationResult]
+    forward: tuple[MappingResult, MappingResult, PairedAnnotationResult]
+    reverse: tuple[MappingResult, MappingResult, PairedAnnotationResult]
 
 
 def add_links_from_single_sequence(graph: BifrostDiGraph, db: LinkDB, seq: str) -> MappingResult:
@@ -75,8 +75,8 @@ def add_links_from_single_sequence(graph: BifrostDiGraph, db: LinkDB, seq: str) 
     MappingResult
         An object describing how well the given sequence mapped to the graph.
     """
-    annotator = LinkAnnotator()
-    return annotator.add_links_from_sequence(graph._ccdbg, db, seq)
+    annotator = LinkAnnotator(graph._ccdbg, db)
+    return annotator.add_links_from_sequence(seq)
 
 
 def add_links_from_ref_genome(graph: BifrostDiGraph, db: LinkDB, genome: str) -> MappingResult:
@@ -99,37 +99,38 @@ def add_links_from_ref_genome(graph: BifrostDiGraph, db: LinkDB, genome: str) ->
     MappingResult
         An object describing how well the genome mapped to the graph.
     """
-    annotator = RefLinkAnnotator()
-    return annotator.add_links_from_sequence(graph._ccdbg, db, genome)
+    annotator = RefLinkAnnotator(graph._ccdbg, db)
+    return annotator.add_links_from_sequence(genome)
 
 
 def add_links_from_paired_read(g: BifrostDiGraph, db: LinkDB, read1: str, read2: str,
-                               first_pass_db: LinkDB = None, read2_orientation: Strand = Strand.REVERSE):
+                               first_pass_db: LinkDB = None, color: int = None,
+                               read2_orientation: Strand = Strand.REVERSE):
     read1_rc = pyfrostcpp.reverse_complement(read1)
     read2_rc = pyfrostcpp.reverse_complement(read2)
 
     if read2_orientation == Strand.REVERSE:
         # First: R1 ----> <---- R2
         logger.debug("Add links R1 ---> <--- R2")
-        result1 = add_links_from_paired_read_with_extension(g, db, read1, read2_rc, first_pass_db)
+        result1 = add_links_from_paired_read_with_extension(g, db, read1, read2_rc, first_pass_db, color)
 
         # Flip them around: R2 ----> <---- R1
         logger.debug("Add links R2 ---> <--- R1")
-        result2 = add_links_from_paired_read_with_extension(g, db, read2, read1_rc, first_pass_db)
+        result2 = add_links_from_paired_read_with_extension(g, db, read2, read1_rc, first_pass_db, color)
     else:
         # First: R1 ----> ----> R2
         logger.debug("Add links R1 ---> ---> R2")
-        result1 = add_links_from_paired_read_with_extension(g, db, read1, read2, first_pass_db)
+        result1 = add_links_from_paired_read_with_extension(g, db, read1, read2, first_pass_db, color)
 
         # Flip them around: R2 <---- <---- R1
         logger.debug("Add links R2 <--- <--- R1")
-        result2 = add_links_from_paired_read_with_extension(g, db, read2_rc, read1_rc, first_pass_db)
+        result2 = add_links_from_paired_read_with_extension(g, db, read2_rc, read1_rc, first_pass_db, color)
 
     return PairedReadMappingResult(result1, result2)
 
 
 def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, read1: str, read2: str,
-                                              first_pass_db: LinkDB = None):
+                                              first_pass_db: LinkDB = None, color: int = None):
     """
     This function adds links from the given reads. It attempts to extend the links generated from read 1 with
     junction choices from read 2. If there's any ambiguity about how to extend them (k-mer mismatches, repeats,
@@ -137,11 +138,12 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
 
     Assumes R1 and R2 are oriented in the same direction.
     """
-    annotator = LinkAnnotator()
-    mapping_result = annotator.add_links_from_sequence(g._ccdbg, db, read1)
+    annotator = LinkAnnotator(g._ccdbg, db, color if color is not None else -1)
+    mapping_result = annotator.add_links_from_sequence(read1)
+    read1_end_unitig = mapping_result.end_unitig()
     read1_kmer_matches = mapping_result.matching_kmers()
-    if mapping_result.end_unitig:
-        logger.debug("Read 1 end unitig: %s, last k-mer match: %s", mapping_result.end_unitig,
+    if read1_end_unitig:
+        logger.debug("Read 1 end unitig: %s, last k-mer match: %s", mapping_result.end_unitig(),
                      bool(read1_kmer_matches[-1]))
 
     continue_add_links = False
@@ -154,16 +156,15 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
         # No valid k-mers found
         umap = None
 
-    # The last k-mer of read 1 should be match too
-    if umap and read1_kmer_matches[-1]:
+    if umap and read1_end_unitig:
         read2_start_unitig = umap['head']
         logger.debug("Read 2 start unitig: %s", read2_start_unitig)
 
         # Ensure we don't end on a repetitive unitig, which could result in ambiguity when extending links from read 2
-        end_unitig_visits = mapping_result.unitig_visits[mapping_result.end_unitig]
+        end_unitig_visits = mapping_result.unitig_visits[read1_end_unitig]
         result = PairedAnnotationResult.UNKNOWN
         if end_unitig_visits == 1:
-            if read2_start_unitig == mapping_result.end_unitig:
+            if read2_start_unitig == read1_end_unitig:
                 # Read 2 starts at the unitig where read 1 ended, continue adding links from read2 to the links
                 # generated from read1
                 continue_add_links = True
@@ -172,16 +173,23 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
             elif first_pass_db is not None:
                 # Let's see if we can find a path from the unitig where read 1 ends to the unitig where read 2 starts,
                 # utilizing the links from a first pass that added links without pair information.
+                # However, we do start building the path from the first mapping k-mer of read 1, to get as much
+                # context of where this read maps on to the graph, and pick up any links from this read that will aid
+                # navigating the right path.
                 # TODO: distance limit configurable
                 logger.debug("search path...")
-                for node in link_supported_path_from(g, first_pass_db, mapping_result.end_unitig, distance_limit=1500,
-                                                     stop_unitig=read2_start_unitig):
-                    logger.debug("- node: %s", node)
-                    if node == read2_start_unitig:
-                        continue_add_links = True
-                        result = PairedAnnotationResult.PATH_FOUND
-                        logger.debug("Found R2 start unitig.")
-                        break
+                logger.debug("Read 1 mapped path: %s", mapping_result.path)
+                path = list(link_supported_path_from(g, first_pass_db, mapping_result.path, link_color=color,
+                                                     distance_limit=1500, stop_unitig=read2_start_unitig))
+
+                if path and path[-1] == read2_start_unitig:
+                    # Found path to start of read 2
+                    logger.debug("Found path to read 2 start unitig: %s->%s", read1_end_unitig, path)
+                    continue_add_links = True
+                    result = PairedAnnotationResult.PATH_FOUND
+
+                    # Make sure we add junction choices of the found path to our junction trees
+                    annotator.add_links_from_path([read1_end_unitig, *path])
 
                 if not continue_add_links:
                     result = PairedAnnotationResult.NO_PATH_FOUND
@@ -193,7 +201,7 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
         result = PairedAnnotationResult.READ2_MISMATCH
 
     logger.debug("Continue adding links? %s", continue_add_links)
-    mapping_result2 = annotator.add_links_from_sequence(g._ccdbg, db, read2, keep_nodes=continue_add_links)
+    mapping_result2 = annotator.add_links_from_sequence(read2, keep_nodes=continue_add_links)
 
     return mapping_result, mapping_result2, result
 
@@ -224,13 +232,13 @@ def add_links_from_fasta(graph: BifrostDiGraph, linkdb: LinkDB, files: Union[str
 
     files = [p if isinstance(p, str) else str(p) for p in files]
 
-    annotator = annotator_cls()
-    return pyfrostcpp.add_links_from_fasta(graph._ccdbg, linkdb, annotator, files, batch_size)
+    annotator = annotator_cls(graph._ccdbg, linkdb)
+    return pyfrostcpp.add_links_from_fasta(annotator, files, batch_size)
 
 
-def add_links_from_fastq_single(g: BifrostDiGraph, linkdb: LinkDB,
-                                file_path: Union[str, Path], mapping_results_out: TextIO = None):
-    annotator = LinkAnnotator()
+def add_links_from_fastq_single(g: BifrostDiGraph, linkdb: LinkDB, file_path: Union[str, Path],
+                                color: int = None, mapping_results_out: TextIO = None):
+    annotator = LinkAnnotator(g._ccdbg, linkdb, color if color is not None else -1)
 
     # TODO: parallelize? Need to make LinkDB thread-safe then
     with open_compressed(file_path, "rt") as fp:
@@ -239,8 +247,8 @@ def add_links_from_fastq_single(g: BifrostDiGraph, linkdb: LinkDB,
                 continue
 
             result = ReadMappingResult(
-                annotator.add_links_from_sequence(g._ccdbg, linkdb, read.seq),
-                annotator.add_links_from_sequence(g._ccdbg, linkdb, pyfrostcpp.reverse_complement(read.seq))
+                annotator.add_links_from_sequence(read.seq),
+                annotator.add_links_from_sequence(pyfrostcpp.reverse_complement(read.seq))
             )
 
             if mapping_results_out:
@@ -252,7 +260,7 @@ def add_links_from_fastq_single(g: BifrostDiGraph, linkdb: LinkDB,
 
 
 def add_links_from_fastq(g: BifrostDiGraph, linkdb: LinkDB,
-                         files: Union[str, Path, list[str], list[Path]], twopass: bool = True,
+                         files: Union[str, Path, list[str], list[Path]], twopass: bool = True, color: int = None,
                          read2_orientation: Strand = Strand.REVERSE, mapping_results_out: TextIO = None):
     if not isinstance(files, list):
         files = list(files)
@@ -271,8 +279,8 @@ def add_links_from_fastq(g: BifrostDiGraph, linkdb: LinkDB,
             # In the first pass we just add links independently without pair information
             logger.info("PASS 1 / 2: Building first-pass link database...")
             first_pass_db = MemLinkDB()
-            add_links_from_fastq_single(g, first_pass_db, files[0])
-            add_links_from_fastq_single(g, first_pass_db, files[1])
+            add_links_from_fastq_single(g, first_pass_db, files[0], color)
+            add_links_from_fastq_single(g, first_pass_db, files[1], color)
 
             logger.info("PASS 2 / 2: Adding links from %s and %s (paired-end mode), utilizing the first-pass "
                         "database...", *files)
@@ -284,7 +292,8 @@ def add_links_from_fastq(g: BifrostDiGraph, linkdb: LinkDB,
                 if len(read1.seq) < g.graph['k'] or len(read2.seq) < g.graph['k']:
                     continue
 
-                result = add_links_from_paired_read(g, linkdb, read1.seq, read2.seq, first_pass_db=first_pass_db,
+                result = add_links_from_paired_read(g, linkdb, read1.seq, read2.seq,
+                                                    first_pass_db=first_pass_db, color=color,
                                                     read2_orientation=read2_orientation)
 
                 if mapping_results_out:
@@ -306,6 +315,8 @@ def log_mapping_result(result: MappingResult):
 
     pct_match = (numpy.count_nonzero(matches) * 100) / len(matches)
 
-    return [result.start_unitig if result.start_unitig else ".",
-            result.end_unitig if result.end_unitig else ".",
+    start_unitig = result.start_unitig()
+    end_unitig = result.end_unitig()
+    return [start_unitig if start_unitig else ".", end_unitig if end_unitig else ".",
+            result.junctions if result.junctions else ".",
             len(matches), result.mapping_start, result.mapping_end, matches_str, f"{pct_match:.2f}"]
