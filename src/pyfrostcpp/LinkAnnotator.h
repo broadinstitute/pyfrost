@@ -8,15 +8,12 @@
 namespace pyfrost {
 
 struct MappingResult {
-    MappingResult() : mapping_start(0), mapping_end(0), num_junctions(0) { }
+    MappingResult() : mapping_start(0), mapping_end(0) { }
     MappingResult(MappingResult const& o) = default;
     MappingResult(MappingResult&& o) = default;
 
-    /// Head k-mer of the first unitig this sequence maps to
-    Kmer start_unitig;
-
-    /// Head k-mer of the last unitig this sequence maps to
-    Kmer end_unitig;
+    /// Path through the graph the sequence took
+    vector<Kmer> path;
 
     /// First position in the sequence that has a k-mer that maps to the graph
     size_t mapping_start;
@@ -24,14 +21,34 @@ struct MappingResult {
     /// Last position in the sequence that has a k-mer that maps to the graph
     size_t mapping_end;
 
-    /// Number of junctions annotated thanks to this sequence
-    size_t num_junctions;
+    /// Junction choices from this link
+    string junctions;
 
     /// For each k-mer in the sequence, whether it was found in the graph or not
     std::vector<uint8_t> matches;
 
     /// For each unitig this sequence traversed, count how often we encountered it
     std::unordered_map<Kmer, size_t> unitig_visits;
+
+    Kmer start_unitig() const {
+        if(path.empty()) {
+            Kmer empty;
+            empty.set_empty();
+            return empty;
+        } else {
+            return path[0];
+        }
+    }
+
+    Kmer end_unitig() const {
+        if(path.empty()) {
+            Kmer empty;
+            empty.set_empty();
+            return empty;
+        } else {
+            return path[path.size()-1];
+        }
+    }
 };
 
 
@@ -50,10 +67,48 @@ size_t kmerPosOriented(UnitigMap<U, G> const& unitig) {
 }
 
 
+/**
+ * Counts number of direct successors with a certain color. Only the first k-mer of the successor unitig is checked
+ * for the color.
+ */
+template<typename U, typename G>
+size_t numSuccWithColor(UnitigMap<U, G> const& unitig, size_t color) {
+    size_t num_with_color = 0;
+    for(UnitigMap<U, G> const& succ : unitig.getSuccessors()) {
+        auto colorset = succ.getData()->getUnitigColors(succ);
+        auto first_kmer = succ.strand ? succ.getKmerMapping(0) : succ.getKmerMapping(succ.len-1);
+        if(colorset->contains(first_kmer, color)) {
+            ++num_with_color;
+        }
+    }
+
+    return num_with_color;
+}
+
+/**
+ * Counts number of direct successors with a certain color. Only the last k-mer of the successor unitig is checked
+ * for the color.
+ */
+template<typename U, typename G>
+size_t numPredWithColor(UnitigMap<U, G> const& unitig, size_t color) {
+    size_t num_with_color = 0;
+    for(UnitigMap<U, G> const& pred : unitig.getPredecessors()) {
+        auto colorset = pred.getData()->getUnitigColors(pred);
+        auto last_kmer = pred.strand ? pred.getKmerMapping(pred.len-1) : pred.getKmerMapping(0);
+        if(colorset->contains(last_kmer, color)) {
+            ++num_with_color;
+        }
+    }
+
+    return num_with_color;
+}
+
+
 template<typename T>
 class LinkAnnotator {
 public:
-    LinkAnnotator() = default;
+    LinkAnnotator(T* _graph, LinkDB* _db) : graph(_graph), db(_db), color(-1) { }
+    LinkAnnotator(T* _graph, LinkDB* _db, int _color) : graph(_graph), db(_db), color(_color) { }
     LinkAnnotator(LinkAnnotator const& o) = default;
     LinkAnnotator(LinkAnnotator&& o) noexcept = default;
     virtual ~LinkAnnotator() = default;
@@ -61,11 +116,9 @@ public:
     /**
      * Thread the given sequence through the graph and annotate specific nodes with the junctions taken.
      *
-     * @param graph The ccDBG
-     * @param db Database to store link annotations
      * @param seq the sequence to thread through the graph
      */
-    virtual MappingResult addLinksFromSequence(T& graph, LinkDB& db, std::string const& seq);
+    virtual MappingResult addLinksFromSequence(std::string const& seq);
 
     /**
      * Thread the given sequence through the graph and annotate specific nodes with the junctions taken.
@@ -75,13 +128,21 @@ public:
      * reads, however, when processing the second read in a pair it might be worthwhile to continue adding links to
      * nodes annotated by the first read. In that case you can set `keep_nodes` to true.
      *
-     * @param graph The ccDBG
-     * @param db Database to store link annotations
      * @param seq the sequence to thread through the graph
      * @param keep_nodes Whether to keep the nodes to annotate from a previous call
      */
-    virtual MappingResult addLinksFromSequence(T& graph, LinkDB& db, std::string const& seq, bool keep_nodes);
+    virtual MappingResult addLinksFromSequence(std::string const& seq, bool keep_nodes);
 
+    /**
+     * Follow the given path through the graph, and add the junction choices to the current junction trees.
+     *
+     * This is useful when mapping paired reads in two passes. In the first pass, you generate links from reads
+     * ignoring read-pair information. Then in a second pass, you separately generate links again, but now utilizing
+     * the links generated in the first pass to find a link supported path from the end unitig of read 1, to the start
+     * unitig of read 2. In that way you can continue adding links to the junction trees generated from read 1, with
+     * junction choices from read 2.
+     */
+    virtual void addLinksFromPath(vector<Kmer> const& path);
 
 protected:
     /**
@@ -104,20 +165,37 @@ protected:
         nodes_to_annotate.clear();
     }
 
+    T* graph;
+    LinkDB* db;
+    int color;
     std::vector<std::shared_ptr<JunctionTreeNode>> nodes_to_annotate;
 };
 
 template<typename T>
 bool LinkAnnotator<T>::nodeNeedsAnnotation(typename T::unitigmap_t const& unitig) {
-    for(auto& succ : unitig.getSuccessors()) {
-        if(succ.getPredecessors().cardinality() > 1) {
-            return true;
+    if(color >= 0) {
+        for(auto& succ : unitig.getSuccessors()) {
+            if(numPredWithColor(succ, color) > 1) {
+                return true;
+            }
         }
-    }
 
-    for(auto& pred : unitig.getPredecessors()) {
-        if(pred.getSuccessors().cardinality() > 1) {
-            return true;
+        for(auto& pred : unitig.getPredecessors()) {
+            if(numSuccWithColor(pred, color) > 1) {
+                return true;
+            }
+        }
+    } else {
+        for(auto& succ : unitig.getSuccessors()) {
+            if(succ.getPredecessors().cardinality() > 1) {
+                return true;
+            }
+        }
+
+        for(auto& pred : unitig.getPredecessors()) {
+            if(pred.getSuccessors().cardinality() > 1) {
+                return true;
+            }
         }
     }
 
@@ -125,20 +203,22 @@ bool LinkAnnotator<T>::nodeNeedsAnnotation(typename T::unitigmap_t const& unitig
 }
 
 template<typename T>
-MappingResult LinkAnnotator<T>::addLinksFromSequence(T& graph, LinkDB& db, string const& seq) {
-    return LinkAnnotator<T>::addLinksFromSequence(graph, db, seq, false);
+MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq) {
+    return LinkAnnotator<T>::addLinksFromSequence(seq, false);
 }
 
 template<typename T>
-MappingResult LinkAnnotator<T>::addLinksFromSequence(T& graph, LinkDB& db, string const& seq, bool keep_nodes) {
+MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool keep_nodes) {
+    if(graph == nullptr || db == nullptr) {
+        throw std::runtime_error("Graph or LinkDB pointer expired!");
+    }
+
     if(!keep_nodes) {
         resetNodesToAnnotate();
     }
 
     bool first_unitig_found = false;
     MappingResult mapping;
-    mapping.start_unitig.set_empty();
-    mapping.end_unitig.set_empty();
     mapping.matches.resize(seq.length() - Kmer::k + 1, 0);
 
     KmerIterator kmer_iter(seq.c_str()), kmer_end;
@@ -147,29 +227,28 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(T& graph, LinkDB& db, strin
         size_t pos;
         tie(kmer, pos) = *kmer_iter;
 
-        //cerr << "\nKmer " << kmer.toString() << ", pos: " << pos << endl;
-
-        // Check if we're at the end of an unitig
-        auto umap = graph.find(kmer);
+        auto umap = graph->find(kmer);
         if(umap.isEmpty) {
-            // Kmer doesn't exist in the graph, move to next
-            continue;
+            if(first_unitig_found){
+                break;
+            } else {
+                // Allow for "clipping" of the sequence if we haven't found a unitig yet.
+                continue;
+            }
         }
 
         auto unitig = umap.mappingToFullUnitig();
         auto unitig_kmer = unitig.getMappedHead();
-        //cerr << "- on unitig: " << unitig_kmer.toString() << endl;
 
         if(!first_unitig_found) {
             // First k-mer that is present in the graph
-            mapping.start_unitig = unitig_kmer;
             mapping.mapping_start = pos;
             first_unitig_found = true;
         }
 
+        mapping.path.push_back(unitig_kmer);
         mapping.matches[pos] = true;
         mapping.mapping_end = pos;
-        mapping.end_unitig = unitig_kmer;
 
         auto it = mapping.unitig_visits.find(unitig_kmer);
         if(it != mapping.unitig_visits.end()) {
@@ -179,16 +258,13 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(T& graph, LinkDB& db, strin
         }
 
         if(nodeNeedsAnnotation(unitig)) {
-            nodes_to_annotate.push_back(db.createOrGetTree(unitig.getMappedTail()));
+            nodes_to_annotate.push_back(db->createOrGetTree(unitig.getMappedTail()));
         }
 
         // Move to the end of the unitig, and by definition we will not encounter any branch points.
-        size_t unitig_len = unitig.size - graph.getK() + 1; // unitig length in num k-mers
+        size_t unitig_len = unitig.size - graph->getK() + 1; // unitig length in num k-mers
         size_t oriented_pos = kmerPosOriented(umap);
         size_t diff_to_unitig_end = unitig_len - oriented_pos - 1;
-
-//        cerr << "- len: " << unitig_len << ", pos: " << umap.dist << ", oriented pos: " << oriented_pos
-//             << ", diff: " << diff_to_unitig_end << endl;
 
         for(int i = 0; i < diff_to_unitig_end && kmer_iter != kmer_end; ++i) {
             // To error correct reads, we don't care if the kmers of the unitig don't match the k-mers of the given
@@ -211,28 +287,23 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(T& graph, LinkDB& db, strin
 
         if(kmer_iter == kmer_end) {
             // End of sequence, but still on the same unitig, so no branches encountered
-//            cerr << "End of sequence." << endl;
             break;
         }
 
         if(kmer != unitig.getMappedTail()) {
             // The k-mer doesn't match the unitig tail anymore. The given sequence (a read) likely contained an error
             // that was removed from the graph, and now there's no unambiguous path anymore, so we quit.
-//            cerr << "Kmer doesn't match unitig tail!" << kmer.toString() << " " << unitig.getMappedTail().toString()
-//                 << endl;
             break;
         }
 
         size_t edge_pos = pos + Kmer::k;
         if(edge_pos >= seq.length()) {
             // At the end of the sequence, so no edge to inspect
-//            cerr << "No sequence left anymore" << endl;
             break;
         }
 
-//        cerr << "- at unitig end: " << unitig.getMappedTail().toString() << endl;
-
-        if(unitig.getSuccessors().cardinality() > 1) {
+        size_t num_succ = color >= 0 ? numSuccWithColor(unitig, color) : unitig.getSuccessors().cardinality();
+        if(num_succ > 1) {
             char edge = toupper(seq[edge_pos]);
             if(!(edge == 'A' || edge == 'C' || edge == 'G' || edge == 'T')) {
                 // Invalid sequence, quit
@@ -248,14 +319,11 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(T& graph, LinkDB& db, strin
                     // Add edge choice to each tree
                     std::transform(
                         nodes_to_annotate.begin(), nodes_to_annotate.end(), nodes_to_annotate.begin(),
-                        [edge] (std::shared_ptr<JunctionTreeNode> node) {
+                        [edge] (std::shared_ptr<JunctionTreeNode> const& node) {
                             return node->addEdge(edge);
                         });
-                    ++mapping.num_junctions;
 
                     found_succ = true;
-//                    cerr << "- " << edge << ", successor: " << succ_kmer.toString() << ", nodes annotated: "
-//                         << nodes_to_annotate.size() << endl;
                     break;
                 }
             }
@@ -267,7 +335,47 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(T& graph, LinkDB& db, strin
         }
     }
 
+    if(!nodes_to_annotate.empty()) {
+        mapping.junctions = nodes_to_annotate[0]->getJunctionChoices();
+    }
+
     return mapping;
+}
+
+template<typename T>
+void LinkAnnotator<T>::addLinksFromPath(vector<Kmer> const& path) {
+    if(graph == nullptr || db == nullptr) {
+        throw std::runtime_error("Graph or LinkDB pointer expired!");
+    }
+
+    size_t i = 0;
+    for(auto const& kmer : path) {
+        auto unitig = graph->find(kmer, true).mappingToFullUnitig();
+        if(unitig.isEmpty) {
+            throw std::runtime_error("Invalid path! Kmer " + kmer.toString() + " is not a unitig.");
+        }
+
+        // Don't mark the start and end of the path as nodes to annotate, because those nodes will be already be marked
+        // as to be annotated by `addLinksFromSequence`.
+        if(i > 0 && i < path.size() - 1) {
+            if(nodeNeedsAnnotation(unitig)) {
+                nodes_to_annotate.push_back(db->createOrGetTree(unitig.getMappedTail()));
+            }
+        }
+
+        // Follow path, and see which edge is taken at junctions
+        size_t num_succ = color >= 0 ? numSuccWithColor(unitig, color) : unitig.getSuccessors().cardinality();
+        if(i < path.size() - 1 && num_succ > 1) {
+            char edge = path[i+1].getChar(Kmer::k-1);
+            std::transform(
+                nodes_to_annotate.begin(), nodes_to_annotate.end(), nodes_to_annotate.begin(),
+                [edge] (std::shared_ptr<JunctionTreeNode> const& node) {
+                    return node->addEdge(edge);
+                });
+        }
+
+        ++i;
+    }
 }
 
 /**
@@ -281,7 +389,7 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(T& graph, LinkDB& db, strin
 template<typename T>
 class RefLinkAnnotator : public LinkAnnotator<T> {
 public:
-    RefLinkAnnotator() = default;
+    RefLinkAnnotator(T* _graph, LinkDB* _db) : LinkAnnotator<T>(_graph, _db) { }
     RefLinkAnnotator(RefLinkAnnotator const& o) = default;
     RefLinkAnnotator(RefLinkAnnotator&& o) noexcept = default;
     virtual ~RefLinkAnnotator() = default;
@@ -305,7 +413,7 @@ private:
  * Read sequences from a FASTA file and add links for each sequence.
  */
 template<typename T>
-void addLinksFromFasta(T& graph, LinkDB& db, LinkAnnotator<T>& annotator, vector<string> const& filepaths,
+void addLinksFromFasta(LinkAnnotator<T>& annotator, vector<string> const& filepaths,
                        size_t batch_size=1e3) {
     atomic<bool> finished_reading(false);
     mutex queue_lock;
@@ -327,7 +435,7 @@ void addLinksFromFasta(T& graph, LinkDB& db, LinkAnnotator<T>& annotator, vector
             guard.unlock();
 
             for(string const& seq : *sequences) {
-                annotator.addLinksFromSequence(graph, db, seq);
+                annotator.addLinksFromSequence(seq);
             }
 
             cerr << "link_creator_thread :: processed block of " << sequences->size() << " sequences.\n" << flush;

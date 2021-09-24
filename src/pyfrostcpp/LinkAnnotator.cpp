@@ -5,24 +5,28 @@ namespace pyfrost {
 
 void define_LinkAnnotator(py::module& m) {
     py::class_<LinkAnnotator<PyfrostCCDBG>>(m, "LinkAnnotator")
-        .def(py::init())
+        .def(py::init<PyfrostCCDBG*, LinkDB*>())
+        .def(py::init<PyfrostCCDBG*, LinkDB*, int>())
         .def("add_links_from_sequence",
-             py::overload_cast<PyfrostCCDBG&, LinkDB&, string const&, bool>(&LinkAnnotator<PyfrostCCDBG>::addLinksFromSequence),
-             py::arg("graph"), py::arg("db"), py::arg("sequence"), py::arg("keep_nodes") = false);
+             py::overload_cast<string const&, bool>(&LinkAnnotator<PyfrostCCDBG>::addLinksFromSequence),
+             py::arg("sequence"), py::arg("keep_nodes") = false)
+         .def("add_links_from_path", &LinkAnnotator<PyfrostCCDBG>::addLinksFromPath);
+
 
     py::class_<RefLinkAnnotator<PyfrostCCDBG>, LinkAnnotator<PyfrostCCDBG>>(m, "RefLinkAnnotator")
-        .def(py::init());
+        .def(py::init<PyfrostCCDBG*, LinkDB*>());
 
     m.def("add_links_from_fasta", &addLinksFromFasta<PyfrostCCDBG>, py::call_guard<py::gil_scoped_release>());
 }
 
 void define_MappingResult(py::module& m) {
     py::class_<MappingResult>(m, "MappingResult")
-        .def_readonly("start_unitig", &MappingResult::start_unitig)
-        .def_readonly("end_unitig", &MappingResult::end_unitig)
+        .def_readonly("path", &MappingResult::path)
+        .def("start_unitig", &MappingResult::start_unitig)
+        .def("end_unitig", &MappingResult::end_unitig)
         .def_readonly("mapping_start", &MappingResult::mapping_start)
         .def_readonly("mapping_end", &MappingResult::mapping_end)
-        .def_readonly("num_junctions", &MappingResult::num_junctions)
+        .def_readonly("junctions", &MappingResult::junctions)
         .def_readonly("unitig_visits", &MappingResult::unitig_visits)
         .def("matching_kmers", [] (MappingResult& self) {
             // Make copy and return as NumPy array
@@ -32,11 +36,12 @@ void define_MappingResult(py::module& m) {
         })
         .def("__str__", [] (MappingResult& self) {
             stringstream sstream;
-            sstream << self.start_unitig.toString() << '\t'
-                    << self.end_unitig.toString() << '\t'
+            sstream << self.start_unitig().toString() << '\t'
+                    << self.end_unitig().toString() << '\t'
                     << self.matches.size() << '\t'
                     << self.mapping_start << '\t'
-                    << self.mapping_end << '\t';
+                    << self.mapping_end << '\t'
+                    << (self.junctions.empty() ? "." : self.junctions);
 
             size_t num_correct = 0;
             for(unsigned char match : self.matches) {
