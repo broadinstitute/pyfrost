@@ -12,7 +12,7 @@ import networkx
 from pyfrostcpp import PyfrostCCDBG, NodesDict, NodeDataDict, AdjacencyOuterDict, AdjacencyType, Kmer
 from pyfrost.views import PyfrostAdjacencyView, PyfrostNodeView
 
-__all__ = ['BifrostDiGraph', 'NodesDict', 'NodeDataDict', 'AdjacencyOuterDict', 'AdjacencyType']
+__all__ = ['BifrostDiGraph', 'Node', 'NodesDict', 'NodeDataDict', 'AdjacencyOuterDict', 'AdjacencyType']
 
 
 def disable_factory_func():
@@ -90,7 +90,7 @@ class BifrostDiGraph(networkx.DiGraph):
     def remove_edges_from(self, ebunch):
         raise networkx.NetworkXError("Manually removing edges is not supported for BifrostDiGraph")
 
-    def find(self, kmer: Union[str, Kmer], extremities_only=False):
+    def find(self, kmer: Node, extremities_only=False):
         """
         Find the unitig (node) containing a given k-mer
         """
@@ -123,3 +123,39 @@ class BifrostDiGraph(networkx.DiGraph):
     @property
     def pred(self):
         return PyfrostAdjacencyView(self._pred)
+
+    def color_restricted_successors(self, node: Node, allowed_colors: Union[set, int] = None):
+        """Get succesor nodes with certain colors.
+
+        If leaving `allowed_colors` to None, it will return all neighbors."""
+
+        if allowed_colors is None:
+            yield from self.successors(node)
+        else:
+            if not isinstance(allowed_colors, set):
+                allowed_colors = {allowed_colors}
+
+            for neighbor in self.successors(node):
+                colors = set(self.nodes[neighbor]['colors'])
+
+                if allowed_colors & colors:
+                    yield neighbor
+
+    color_restricted_neighbors = color_restricted_successors
+
+    def color_restricted_predecessors(self, node: Node, allowed_colors: Union[set, int] = None):
+        """Get predecessor nodes with certain colors.
+
+        If leaving `allowed_colors` to None, it will return all predecessors."""
+
+        if allowed_colors is None:
+            yield from self.predecessors(node)
+        else:
+            if not isinstance(allowed_colors, set):
+                allowed_colors = {allowed_colors}
+
+            for neighbor in self.predecessors(node):
+                colors = set(self.nodes[neighbor]['colors'])
+
+                if allowed_colors & colors:
+                    yield neighbor
