@@ -119,17 +119,21 @@ PyfrostCCDBG build(py::list const& input_ref_files, py::list const& input_seq_fi
     populate_options(opt, kwargs);
 
     PyfrostCCDBG ccdbg(opt.k, opt.g);
-    bool result = ccdbg.buildGraph(opt);
+    bool result;
+    {
+        py::gil_scoped_release release;
+        result = ccdbg.buildGraph(opt);
 
-    if(!result) {
-        throw std::runtime_error("Error building the graph.");
+        if(!result) {
+            throw std::runtime_error("Error building the graph.");
+        }
+
+        ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+        result = ccdbg.buildColors(opt);
     }
 
-    ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-    result = ccdbg.buildColors(opt);
-
     if(!result) {
-        throw std::runtime_error("Error building coloring the graph.");
+        throw std::runtime_error("Error building coloring of the graph.");
     }
 
     return ccdbg;
@@ -142,8 +146,13 @@ PyfrostCCDBG load(char const* input_graph_file, char const* input_color_file, py
 
     populate_options(opt, kwargs);
 
+    bool result;
     PyfrostCCDBG ccdbg(opt.k, opt.g);
-    bool result = ccdbg.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
+
+    {
+        py::gil_scoped_release release;
+        result = ccdbg.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
+    }
 
     if(!result) {
         throw std::runtime_error("Error reading the graph.");
@@ -189,12 +198,12 @@ PYBIND11_MODULE(pyfrostcpp, m) {
     pyfrost::define_LinkAnnotator(m);
     pyfrost::define_MappingResult(m);
 
-    m.def("load", &pyfrost::load, py::call_guard<py::gil_scoped_release>(),
+    m.def("load", &pyfrost::load,
           "Load an existing colored Bifrost graph from a file.");
-    m.def("build", &pyfrost::build, py::call_guard<py::gil_scoped_release>(),
+    m.def("build", &pyfrost::build,
           "Build a colored compacted Bifrost graph from references and sequencing data.");
     m.def("dump", &pyfrost::dump, py::arg("g"), py::arg("fname_prefix"), py::arg("num_threads") = 2,
-          py::call_guard<py::gil_scoped_release>(), "Save graph to file.");
+          "Save graph to file.");
 
     m.def("reverse_complement", py::overload_cast<char const*>(&reverse_complement),
         "Return the reverse complement of a DNA string");
