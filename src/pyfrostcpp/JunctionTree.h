@@ -1,6 +1,7 @@
 #ifndef PYFROST_JUNCTIONTREE_H
 #define PYFROST_JUNCTIONTREE_H
 
+#include "pyfrost.h"
 #include <robin_hood.h>
 
 #include "Kmer.h"
@@ -28,6 +29,9 @@ public:
 
     void prune(size_t threshold);
     size_t getCount() const;
+
+    string getJunctionChoices();
+    vector<size_t> getCoverages();
 
     template<typename Archive>
     void serialize(Archive& ar) {

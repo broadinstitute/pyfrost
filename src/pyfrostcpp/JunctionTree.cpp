@@ -85,6 +85,39 @@ void JunctionTreeNode::prune(size_t threshold) {
     }
 }
 
+string JunctionTreeNode::getJunctionChoices() {
+    deque<char> output;
+    shared_ptr<JunctionTreeNode> curr = shared_from_this();
+
+    while(curr->parent_edge) {
+        output.push_front(curr->parent_edge);
+        if(auto ptr = curr->parent.lock()) {
+            curr = ptr;
+        } else {
+            break;
+        }
+    }
+
+    return string(output.begin(), output.end());
+}
+
+vector<size_t> JunctionTreeNode::getCoverages() {
+    deque<size_t> output;
+    shared_ptr<JunctionTreeNode> curr = shared_from_this();
+
+    while(curr->parent_edge) {
+        output.push_front(curr->count);
+        if(auto ptr = curr->parent.lock()) {
+            curr = ptr;
+        } else {
+            break;
+        }
+    }
+
+    return vector<size_t>(output.begin(), output.end());
+}
+
+
 void define_JunctionTreeNode(py::module& m) {
     auto py_JunctionTreeNode = py::class_<JunctionTreeNode, std::shared_ptr<JunctionTreeNode>>(m, "JunctionTreeNode")
         .def("__getitem__", [] (JunctionTreeNode& self, char edge) {
@@ -101,7 +134,9 @@ void define_JunctionTreeNode(py::module& m) {
         .def("__repr__", [] (JunctionTreeNode& self) {
             std::stringstream sstream;
 
-            sstream << "<JunctionTreeNode parent=" << self.getParentEdge() << " count=" << self.getCount();
+            char parent = self.getParentEdge();
+            parent = parent == 0 ? '-' : parent;
+            sstream << "<JunctionTreeNode parent=" << parent << " count=" << self.getCount();
             sstream << " children=[";
             bool first = true;
             for(auto const& it : self.getChildren()) {
@@ -117,8 +152,23 @@ void define_JunctionTreeNode(py::module& m) {
             return sstream.str();
         })
 
+        .def("__hash__", [] (JunctionTreeNode& self) {
+            string choices = self.getJunctionChoices();
+            return hash<string>()(choices);
+        })
+
+        .def("__eq__", [] (JunctionTreeNode& self, JunctionTreeNode& other) {
+            return self.getJunctionChoices() == other.getJunctionChoices();
+        })
+
+        .def("junction_choices", &JunctionTreeNode::getJunctionChoices)
+        .def("coverages", [] (JunctionTreeNode& self) {
+            return as_pyarray<vector<size_t>>(move(self.getCoverages()));
+        })
+
         .def("prune", &JunctionTreeNode::prune)
         .def("is_leaf", &JunctionTreeNode::isLeaf)
+
         .def_property_readonly("count", &JunctionTreeNode::getCount)
         .def_property_readonly("parent", [] (JunctionTreeNode& self) -> py::object {
             if(auto parent = self.getParent().lock()) {
