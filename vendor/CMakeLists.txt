@@ -15,3 +15,6 @@ target_include_directories(robin_hood INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/robi
 # Include cereal serialization library
 add_library(cereal INTERFACE)
 target_include_directories(cereal INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/cereal/include)
+
+add_library(optional INTERFACE)
+target_include_directories(optional INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/optional/include)
