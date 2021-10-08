@@ -162,10 +162,11 @@ void KmerCounter::counterThread()
 
         for(auto const& sequence : *sequences) {
             KmerIterator kmer_iter(sequence.c_str()), kmer_end;
-            minHashIterator<RepHash> it_min(sequence.c_str(), sequence.size(), Kmer::k, Minimizer::g, RepHash(), true);
+            minHashIterator<RepHash> it_min(sequence.c_str(), sequence.size(), k, g, RepHash(), true);
 
             for(; kmer_iter != kmer_end; ++kmer_iter) {
                 std::pair<Kmer, int> const p = *kmer_iter; // K-mer hash and position in sequence
+
                 Kmer kmer = canonical ? p.first.rep() : p.first;
                 ++num_kmers;
 
@@ -174,9 +175,10 @@ void KmerCounter::counterThread()
                 // Minimizer hash serves as hash table index
                 it_min += (p.second - it_min.getKmerPosition());
                 uint64_t minimizer_hash = it_min.getHash();
-                size_t table_ix = minimizer_hash % tables.size();
 
+                size_t table_ix = minimizer_hash % tables.size();
                 unique_lock<mutex> table_guard(table_locks[table_ix]);
+
                 kmercount_t curr_count = 0;
                 if(tables[table_ix].contains(kmer)) {
                     curr_count = tables[table_ix][kmer];
@@ -258,11 +260,19 @@ void define_KmerCounter(py::module& m) {
         .def("__getitem__", py::overload_cast<char const*>(&KmerCounter::query, py::const_))
 
         .def("__iter__", [] (KmerCounter& self) {
-            return py::make_key_iterator(self.begin(), self.end());
+            return py::make_key_iterator<py::return_value_policy::copy>(self.begin(), self.end());
         }, py::keep_alive<0, 1>())
 
         .def("items", [] (KmerCounter& self) {
-            return py::make_iterator(self.begin(), self.end());
+            return py::make_iterator<py::return_value_policy::copy>(self.begin(), self.end());
+        }, py::keep_alive<0, 1>())
+
+        .def("keys", [] (KmerCounter& self) {
+            return py::make_key_iterator<py::return_value_policy::copy>(self.begin(), self.end());
+        }, py::keep_alive<0, 1>())
+
+        .def("values", [] (KmerCounter& self) {
+            return py::make_value_iterator<py::return_value_policy::copy>(self.begin(), self.end());
         }, py::keep_alive<0, 1>())
 
         .def("__len__", [] (KmerCounter const& self) {
