@@ -142,7 +142,7 @@ void define_Kmer(py::module &m) {
     py::class_<Kmerizer>(m, "kmerize_str")
         .def(py::init<std::string const&>())
         .def("__iter__", [] (Kmerizer const& self) {
-            return py::make_key_iterator(self.begin(), self.end());
+            return py::make_key_iterator<py::return_value_policy::copy>(self.begin(), self.end());
         }, py::keep_alive<0, 1>());
 
 
