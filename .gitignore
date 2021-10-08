@@ -9,3 +9,9 @@ build
 .pytest_cache
 dist
 __pycache__
+
+test.links
+test.log
+test_log
+var/
+.eggs/
