@@ -119,18 +119,14 @@ PyfrostCCDBG build(py::list const& input_ref_files, py::list const& input_seq_fi
     populate_options(opt, kwargs);
 
     PyfrostCCDBG ccdbg(opt.k, opt.g);
-    bool result;
-    {
-        py::gil_scoped_release release;
-        result = ccdbg.buildGraph(opt);
+    bool result = ccdbg.buildGraph(opt);
 
-        if(!result) {
-            throw std::runtime_error("Error building the graph.");
-        }
-
-        ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
-        result = ccdbg.buildColors(opt);
+    if(!result) {
+        throw std::runtime_error("Error building the graph.");
     }
+
+    ccdbg.simplify(opt.deleteIsolated, opt.clipTips, opt.verbose);
+    result = ccdbg.buildColors(opt);
 
     if(!result) {
         throw std::runtime_error("Error building coloring of the graph.");
@@ -146,13 +142,8 @@ PyfrostCCDBG load(char const* input_graph_file, char const* input_color_file, py
 
     populate_options(opt, kwargs);
 
-    bool result;
     PyfrostCCDBG ccdbg(opt.k, opt.g);
-
-    {
-        py::gil_scoped_release release;
-        result = ccdbg.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
-    }
+    bool result = ccdbg.read(opt.filename_graph_in, opt.filename_colors_in, opt.nb_threads, opt.verbose);
 
     if(!result) {
         throw std::runtime_error("Error reading the graph.");
