@@ -4,12 +4,12 @@
 
 namespace pyfrost {
 
-JunctionTreeNode::JunctionTreeNode() : parent_edge(0), count(1)
+JunctionTreeNode::JunctionTreeNode() : parent_edge(0), parent(nullptr), count(1)
 {
 }
 
 JunctionTreeNode::JunctionTreeNode(char _parent_edge, JunctionTreeNode::parent_ptr_t _parent)
-    : parent_edge(_parent_edge), parent(std::move(_parent)), count(0)
+    : parent_edge(_parent_edge), parent(_parent), count(0)
 {
 }
 
@@ -28,7 +28,7 @@ JunctionTreeNode::children_t& JunctionTreeNode::getChildren()
 }
 
 
-JunctionTreeNode::junction_node_ptr_t JunctionTreeNode::addEdge(char edge)
+JunctionTreeNode& JunctionTreeNode::addEdge(char edge)
 {
     if(!(edge == 'A' || edge == 'C' || edge =='G' || edge == 'T')) {
         throw std::runtime_error("Invalid edge, must be one of A, C, T or G");
@@ -36,12 +36,12 @@ JunctionTreeNode::junction_node_ptr_t JunctionTreeNode::addEdge(char edge)
 
     auto it = children.find(edge);
     if(it == children.end()) {
-        children.emplace(edge, std::make_shared<JunctionTreeNode>(edge, shared_from_this()));
+        children.emplace(edge, std::make_unique<JunctionTreeNode>(edge, this));
     }
 
     children[edge]->increment();
 
-    return children[edge];
+    return *children[edge];
 }
 
 void JunctionTreeNode::increment()
@@ -87,12 +87,12 @@ void JunctionTreeNode::prune(size_t threshold) {
 
 string JunctionTreeNode::getJunctionChoices() {
     deque<char> output;
-    shared_ptr<JunctionTreeNode> curr = shared_from_this();
+    JunctionTreeNode* curr = this;
 
     while(curr->parent_edge) {
         output.push_front(curr->parent_edge);
-        if(auto ptr = curr->parent.lock()) {
-            curr = ptr;
+        if(curr->parent != nullptr) {
+            curr = curr->parent;
         } else {
             break;
         }
@@ -103,31 +103,31 @@ string JunctionTreeNode::getJunctionChoices() {
 
 vector<size_t> JunctionTreeNode::getCoverages() {
     deque<size_t> output;
-    shared_ptr<JunctionTreeNode> curr = shared_from_this();
+    JunctionTreeNode* curr = this;
 
     while(curr->parent_edge) {
         output.push_front(curr->count);
-        if(auto ptr = curr->parent.lock()) {
-            curr = ptr;
+        if(curr->parent != nullptr) {
+            curr = curr->parent;
         } else {
             break;
         }
     }
 
-    return vector<size_t>(output.begin(), output.end());
+    return {output.begin(), output.end()};
 }
 
 
 void define_JunctionTreeNode(py::module& m) {
-    auto py_JunctionTreeNode = py::class_<JunctionTreeNode, std::shared_ptr<JunctionTreeNode>>(m, "JunctionTreeNode")
+    auto py_JunctionTreeNode = py::class_<JunctionTreeNode>(m, "JunctionTreeNode")
         .def("__getitem__", [] (JunctionTreeNode& self, char edge) {
-            return self.getChildren().at(edge);
-        })
+            return self.getChildren().at(edge).get();
+        }, py::return_value_policy::reference)
         .def("__len__", [] (JunctionTreeNode& self) {
             return self.getChildren().size();
         })
         .def("__iter__", [] (JunctionTreeNode& self) {
-            return py::make_key_iterator(
+            return py::make_key_iterator<py::return_value_policy::reference>(
                 self.getChildren().begin(), self.getChildren().end());
         }, py::keep_alive<0, 1>())
 
@@ -171,19 +171,19 @@ void define_JunctionTreeNode(py::module& m) {
 
         .def_property_readonly("count", &JunctionTreeNode::getCount)
         .def_property_readonly("parent", [] (JunctionTreeNode& self) -> py::object {
-            if(auto parent = self.getParent().lock()) {
-                return py::cast(parent);
+            if(self.getParent() != nullptr) {
+                return py::cast(self.getParent());
             }
 
             return py::none();
-        })
+        }, py::return_value_policy::reference)
         .def_property_readonly("parent_edge", [] (JunctionTreeNode& self) -> py::object {
             if(self.getParentEdge() != 0) {
                 return py::cast(self.getParentEdge());
             }
 
             return py::none();
-        });
+        }, py::return_value_policy::reference);
 
     auto Mapping = py::module::import("collections.abc").attr("Mapping");
     py_JunctionTreeNode.attr("__bases__") = py::make_tuple(Mapping).attr("__add__")(py_JunctionTreeNode.attr("__bases__"));

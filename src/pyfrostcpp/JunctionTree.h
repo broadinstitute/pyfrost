@@ -9,21 +9,20 @@
 
 namespace pyfrost {
 
-class JunctionTreeNode : public std::enable_shared_from_this<JunctionTreeNode> {
+class JunctionTreeNode {
 public:
-    using junction_node_ptr_t = std::shared_ptr<JunctionTreeNode>;
-    using parent_ptr_t = std::weak_ptr<JunctionTreeNode>;
+    using junction_node_ptr_t = std::unique_ptr<JunctionTreeNode>;
+    using parent_ptr_t = JunctionTreeNode*;
     using children_t = std::map<char, junction_node_ptr_t>;
 
     JunctionTreeNode();
     JunctionTreeNode(char _parent_edge, parent_ptr_t parent);
-    JunctionTreeNode(JunctionTreeNode const& o) = default;
     JunctionTreeNode(JunctionTreeNode&& o) = default;
 
     parent_ptr_t getParent();
     char getParentEdge() const;
     children_t& getChildren();
-    junction_node_ptr_t addEdge(char edge);
+    JunctionTreeNode& addEdge(char edge);
 
     bool isLeaf() const;
 
@@ -35,7 +34,15 @@ public:
 
     template<typename Archive>
     void serialize(Archive& ar) {
-        ar(parent_edge, parent, count, children);
+        ar(parent_edge, count, children);
+    }
+
+    // To be called after loading from a file.
+    void fixParents() {
+        for(auto& child : children) {
+            child.second->parent = this;
+            child.second->fixParents();
+        }
     }
 
 private:
