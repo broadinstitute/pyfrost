@@ -1,5 +1,4 @@
 import sys
-from collections import deque
 
 import numpy
 import pytest
@@ -44,6 +43,8 @@ def get_known_links_paired_end_on_repeat():
 
 def test_add_links(linked_mccortex):
     g, mem_link_db = linked_mccortex
+    assert mem_link_db.color is None
+
     known_links = get_known_links()
 
     for kmer, tree in mem_link_db.items():
@@ -53,7 +54,6 @@ def test_add_links(linked_mccortex):
                 choices = node.junction_choices()
                 all_choices.add(choices)
 
-        print(kmer, all_choices, file=sys.stderr)
         assert all_choices == known_links.get(kmer, set())
 
 
@@ -105,7 +105,6 @@ def test_link_paired_read_same_unitig(mccortex):
             if node.is_leaf():
                 choices = node.junction_choices()
                 all_choices.add(choices)
-        print(kmer, all_choices, file=sys.stderr)
         assert all_choices == known_links.get(kmer, set())
 
 
@@ -165,11 +164,14 @@ def test_navigation_conflicting_links(linked_mccortex):
 
 def test_memlinkdb_file_load_save(linked_mccortex, tmp_path):
     g, mem_link_db = linked_mccortex
+    mem_link_db.color = 0
 
     file_path = str(tmp_path / "mccortex.links")
     mem_link_db.save(file_path)
 
     mem_link_db2 = links.MemLinkDB.from_file(file_path)
+    assert mem_link_db2.color == 0
+
     known_links = get_known_links()
 
     for kmer, tree in mem_link_db2.items():

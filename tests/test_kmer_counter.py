@@ -7,9 +7,9 @@ from pyfrost import Kmer, KmerCounter
 
 def test_kmer_counter():
     test_str = "ACTGATTTCGATGCGATGCGATGCCACGGTGG"
-    truth_counter = Counter(Kmer(test_str[i:i+5]) for i in range(len(test_str) - 5 + 1))
 
     counter = KmerCounter(5, 3, canonical=False).count_kmers(test_str)
+    truth_counter = Counter(Kmer(test_str[i:i+5]) for i in range(len(test_str) - 5 + 1))
 
     for kmer, truth in truth_counter.items():
         assert counter.query(kmer) == truth
