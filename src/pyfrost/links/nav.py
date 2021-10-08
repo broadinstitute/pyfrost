@@ -279,7 +279,8 @@ class NavigationEngine:
                 return neighbor
 
     def traverse(self, source: Union[Node, Sequence[Node]], distance_limit: int = None,
-                 stop_unitig: Union[Kmer, set[Kmer]] = None) -> Iterable[Kmer]:
+                 stop_unitig: Union[Kmer, set[Kmer]] = None,
+                 with_dist: bool = False) -> Iterable[Union[Kmer, tuple[Kmer, int]]]:
         """
         Builds the longest contiguous path possible as supported by the links. Halts at branch point where the links
         don't provide a clear choice.
@@ -297,11 +298,14 @@ class NavigationEngine:
             Maximum path length in k-mers, excludes any source nodes
         stop_unitig : Kmer, set[Kmer], optional
             Stop traversal when reaching the given unitig.
+        with_dist : bool
+            Include the current distance from the source with each yield of a node.
 
         Yields
         ------
-        Kmer
-            Nodes along the path from source, excluding the source node(s) itself
+        Kmer | tuple[Kmer, int]
+            Nodes along the path from source, excluding the source node(s) itself. If `with_dist` is True,
+            then each node also includes the distance from source.
         """
 
         if not isinstance(source, Sequence):
@@ -341,6 +345,7 @@ class NavigationEngine:
                 if choice not in neighbors_dict:
                     raise PyfrostInvalidPathError(
                         f"Given source path is not a valid path through the graph!\n"
+                        f"Source path: {source}\n"
                         f"Current node: {n}, neighbors: {neighbors_dict}, expected neighbor: {choice} "
                         f"({source[source_ix]})."
                     )
@@ -366,7 +371,10 @@ class NavigationEngine:
                     if distance_limit and curr_dist > distance_limit:
                         n = None
                     else:
-                        yield n
+                        if with_dist:
+                            yield n, curr_dist
+                        else:
+                            yield n
 
                     if n in stop_unitig:
                         n = None
@@ -390,10 +398,11 @@ class NavigationEngine:
 
 def link_supported_path_from(g: BifrostDiGraph, linkdb: LinkDB, source: Union[Node, Sequence[Node]],
                              link_color: int = None, distance_limit: int = None,
-                             stop_unitig: Union[Kmer, set[Kmer]] = None) -> Iterable[Kmer]:
+                             stop_unitig: Union[Kmer, set[Kmer]] = None,
+                             with_dist: bool = False) -> Iterable[Union[Kmer, tuple[Kmer, int]]]:
     """
     Shortcut for building a link supported path with default navigation settings and strategy.
     """
 
     engine = NavigationEngine(g, linkdb, link_color)
-    yield from engine.traverse(source, distance_limit, stop_unitig)
+    yield from engine.traverse(source, distance_limit, stop_unitig, with_dist)
