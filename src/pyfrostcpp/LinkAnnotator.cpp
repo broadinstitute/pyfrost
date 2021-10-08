@@ -6,15 +6,16 @@ namespace pyfrost {
 void define_LinkAnnotator(py::module& m) {
     py::class_<LinkAnnotator<PyfrostCCDBG>>(m, "LinkAnnotator")
         .def(py::init<PyfrostCCDBG*, LinkDB*>())
-        .def(py::init<PyfrostCCDBG*, LinkDB*, int>())
         .def("add_links_from_sequence",
              py::overload_cast<string const&, bool>(&LinkAnnotator<PyfrostCCDBG>::addLinksFromSequence),
              py::arg("sequence"), py::arg("keep_nodes") = false)
          .def("add_links_from_path", &LinkAnnotator<PyfrostCCDBG>::addLinksFromPath);
 
+    py::class_<ColorAssociatedAnnotator<PyfrostCCDBG>, LinkAnnotator<PyfrostCCDBG>>(m, "ColorAssociatedAnnotator")
+        .def(py::init<PyfrostCCDBG*, LinkDB*, size_t>());
 
-    py::class_<RefLinkAnnotator<PyfrostCCDBG>, LinkAnnotator<PyfrostCCDBG>>(m, "RefLinkAnnotator")
-        .def(py::init<PyfrostCCDBG*, LinkDB*>());
+    py::class_<RefLinkAnnotator<PyfrostCCDBG>, ColorAssociatedAnnotator<PyfrostCCDBG>>(m, "RefLinkAnnotator")
+        .def(py::init<PyfrostCCDBG*, LinkDB*, size_t>());
 
     m.def("add_links_from_fasta", &addLinksFromFasta<PyfrostCCDBG>, py::call_guard<py::gil_scoped_release>());
 }

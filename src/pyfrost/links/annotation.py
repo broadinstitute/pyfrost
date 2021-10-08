@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Union, Type, NamedTuple, TextIO
 
 import numpy
 import pyfrostcpp
-from pyfrostcpp import LinkAnnotator, RefLinkAnnotator, MappingResult, Strand
+from pyfrostcpp import LinkAnnotator, ColorAssociatedAnnotator, RefLinkAnnotator, MappingResult, Strand
 from pyfrost.links.db import LinkDB, MemLinkDB
 from pyfrost.links.nav import link_supported_path_from
 from pyfrost.io import read_fastq, read_paired_fastq, open_compressed
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 __all__ = ['add_links_from_single_sequence', 'add_links_from_ref_genome', 'add_links_from_fasta',
            'add_links_from_fastq', 'add_links_from_paired_read',
-           'LinkAnnotator', 'RefLinkAnnotator', 'MappingResult']
+           'LinkAnnotator', 'ColorAssociatedAnnotator', 'RefLinkAnnotator', 'MappingResult']
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +138,7 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
 
     Assumes R1 and R2 are oriented in the same direction.
     """
-    annotator = LinkAnnotator(g._ccdbg, db, color if color is not None else -1)
+    annotator = LinkAnnotator(g._ccdbg, db) if color is None else ColorAssociatedAnnotator(g._ccdbg, db, color)
     mapping_result = annotator.add_links_from_sequence(read1)
     read1_end_unitig = mapping_result.end_unitig()
     read1_kmer_matches = mapping_result.matching_kmers()
@@ -207,7 +207,7 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
 
 
 def add_links_from_fasta(graph: BifrostDiGraph, linkdb: LinkDB, files: Union[str, Path, list[str], list[Path]],
-                         annotator_cls: Type[LinkAnnotator] = LinkAnnotator, batch_size: int = 1000):
+                         color: int = None, annotator_cls: Type[LinkAnnotator] = LinkAnnotator, batch_size: int = 1000):
     """
     Thread sequences read from the given file(s) through the graph, and annotate which branches were taken as links
     in `linkdb`. Supports compressed FASTA files too.
@@ -220,6 +220,8 @@ def add_links_from_fasta(graph: BifrostDiGraph, linkdb: LinkDB, files: Union[str
         The link database to store link annotations
     files : str, Path, list
         One or more paths to FASTA files to read
+    color : int
+        Associate links generated from this FASTA file with a specific color. Optional.
     annotator_cls : Type[LinkAnnotator]
         The class to use for creating links. Defaults to `LinkAnnotator`, but you could for example specify
         `RefLinkAnnotator` here.
@@ -232,13 +234,13 @@ def add_links_from_fasta(graph: BifrostDiGraph, linkdb: LinkDB, files: Union[str
 
     files = [p if isinstance(p, str) else str(p) for p in files]
 
-    annotator = annotator_cls(graph._ccdbg, linkdb)
+    annotator = annotator_cls(graph._ccdbg, linkdb) if color is None else annotator_cls(graph._ccdbg, linkdb, color)
     return pyfrostcpp.add_links_from_fasta(annotator, files, batch_size)
 
 
 def add_links_from_fastq_single(g: BifrostDiGraph, linkdb: LinkDB, file_path: Union[str, Path],
                                 color: int = None, mapping_results_out: TextIO = None):
-    annotator = LinkAnnotator(g._ccdbg, linkdb, color if color is not None else -1)
+    annotator = LinkAnnotator(g._ccdbg, linkdb) if color is None else ColorAssociatedAnnotator(g._ccdbg, linkdb, color)
 
     # TODO: parallelize? Need to make LinkDB thread-safe then
     with open_compressed(file_path, "rt") as fp:
@@ -271,21 +273,21 @@ def add_links_from_fastq(g: BifrostDiGraph, linkdb: LinkDB,
     if len(files) == 1:
         # Single read file
         logger.info("PASS 1 / 1: Adding links from %s (single-end mode)...", files[0])
-        add_links_from_fastq_single(g, linkdb, files[0], mapping_results_out=mapping_results_out)
+        add_links_from_fastq_single(g, linkdb, files[0], color, mapping_results_out=mapping_results_out)
     else:
         # Paired-end reads
         first_pass_db = None
         if twopass:
             # In the first pass we just add links independently without pair information
             logger.info("PASS 1 / 2: Building first-pass link database...")
-            first_pass_db = MemLinkDB()
+            first_pass_db = MemLinkDB(color)
             add_links_from_fastq_single(g, first_pass_db, files[0], color)
             add_links_from_fastq_single(g, first_pass_db, files[1], color)
 
             logger.info("PASS 2 / 2: Adding links from %s and %s (paired-end mode), utilizing the first-pass "
                         "database...", *files)
         else:
-            logger.info("PASS 1 / 1: Adding links from %s and %s (paired-end mode)...", *files)
+            logger.info("PASS 1 / 1: Adding links from %s and %s (single pass paired-end mode)...", *files)
 
         with open_compressed(files[0], "rt") as fp1, open_compressed(files[1], "rt") as fp2:
             for read1, read2 in read_paired_fastq(fp1, fp2):

@@ -5,6 +5,8 @@
 #include "JunctionTree.h"
 #include "LinkDB.h"
 
+#include <condition_variable>
+
 namespace pyfrost {
 
 struct MappingResult {
@@ -67,48 +69,10 @@ size_t kmerPosOriented(UnitigMap<U, G> const& unitig) {
 }
 
 
-/**
- * Counts number of direct successors with a certain color. Only the first k-mer of the successor unitig is checked
- * for the color.
- */
-template<typename U, typename G>
-size_t numSuccWithColor(UnitigMap<U, G> const& unitig, size_t color) {
-    size_t num_with_color = 0;
-    for(UnitigMap<U, G> const& succ : unitig.getSuccessors()) {
-        auto colorset = succ.getData()->getUnitigColors(succ);
-        auto first_kmer = succ.strand ? succ.getKmerMapping(0) : succ.getKmerMapping(succ.len-1);
-        if(colorset->contains(first_kmer, color)) {
-            ++num_with_color;
-        }
-    }
-
-    return num_with_color;
-}
-
-/**
- * Counts number of direct successors with a certain color. Only the last k-mer of the successor unitig is checked
- * for the color.
- */
-template<typename U, typename G>
-size_t numPredWithColor(UnitigMap<U, G> const& unitig, size_t color) {
-    size_t num_with_color = 0;
-    for(UnitigMap<U, G> const& pred : unitig.getPredecessors()) {
-        auto colorset = pred.getData()->getUnitigColors(pred);
-        auto last_kmer = pred.strand ? pred.getKmerMapping(pred.len-1) : pred.getKmerMapping(0);
-        if(colorset->contains(last_kmer, color)) {
-            ++num_with_color;
-        }
-    }
-
-    return num_with_color;
-}
-
-
 template<typename T>
 class LinkAnnotator {
 public:
-    LinkAnnotator(T* _graph, LinkDB* _db) : graph(_graph), db(_db), color(-1) { }
-    LinkAnnotator(T* _graph, LinkDB* _db, int _color) : graph(_graph), db(_db), color(_color) { }
+    LinkAnnotator(T* _graph, LinkDB* _db) : graph(_graph), db(_db) { }
     LinkAnnotator(LinkAnnotator const& o) = default;
     LinkAnnotator(LinkAnnotator&& o) noexcept = default;
     virtual ~LinkAnnotator() = default;
@@ -165,37 +129,43 @@ protected:
         nodes_to_annotate.clear();
     }
 
+    /**
+     * Locate a k-mer in the graph. Can be overriden to ensure only k-mers with a color are valid.
+     */
+    virtual typename T::unitigmap_t findKmer(Kmer kmer) {
+        return graph->find(kmer);
+    }
+
+    /**
+     * Returns number of successors of a given node, can be overridden for e.g. color specific successors.
+     */
+    virtual size_t numSucessors(typename T::unitigmap_t const& unitig) {
+        return unitig.getSuccessors().cardinality();
+    }
+
+    /**
+     * Returns number of predecessors of a given node, can be overridden for e.g. color specific predecessors.
+     */
+    virtual size_t numPredecessors(typename T::unitigmap_t const& unitig) {
+        return unitig.getPredecessors().cardinality();
+    }
+
     T* graph;
     LinkDB* db;
-    int color;
-    std::vector<std::shared_ptr<JunctionTreeNode>> nodes_to_annotate;
+    std::vector<JunctionTreeNode*> nodes_to_annotate;
 };
 
 template<typename T>
 bool LinkAnnotator<T>::nodeNeedsAnnotation(typename T::unitigmap_t const& unitig) {
-    if(color >= 0) {
-        for(auto& succ : unitig.getSuccessors()) {
-            if(numPredWithColor(succ, color) > 1) {
-                return true;
-            }
+    for(auto& succ : unitig.getSuccessors()) {
+        if(numPredecessors(succ) > 1) {
+            return true;
         }
+    }
 
-        for(auto& pred : unitig.getPredecessors()) {
-            if(numSuccWithColor(pred, color) > 1) {
-                return true;
-            }
-        }
-    } else {
-        for(auto& succ : unitig.getSuccessors()) {
-            if(succ.getPredecessors().cardinality() > 1) {
-                return true;
-            }
-        }
-
-        for(auto& pred : unitig.getPredecessors()) {
-            if(pred.getSuccessors().cardinality() > 1) {
-                return true;
-            }
+    for(auto& pred : unitig.getPredecessors()) {
+        if(numSucessors(pred) > 1) {
+            return true;
         }
     }
 
@@ -227,7 +197,7 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
         size_t pos;
         tie(kmer, pos) = *kmer_iter;
 
-        auto umap = graph->find(kmer);
+        auto umap = findKmer(kmer);
         if(umap.isEmpty) {
             if(first_unitig_found){
                 break;
@@ -258,7 +228,7 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
         }
 
         if(nodeNeedsAnnotation(unitig)) {
-            nodes_to_annotate.push_back(db->createOrGetTree(unitig.getMappedTail()));
+            nodes_to_annotate.push_back(&db->createOrGetTree(unitig.getMappedTail()));
         }
 
         // Move to the end of the unitig, and by definition we will not encounter any branch points.
@@ -302,8 +272,7 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
             break;
         }
 
-        size_t num_succ = color >= 0 ? numSuccWithColor(unitig, color) : unitig.getSuccessors().cardinality();
-        if(num_succ > 1) {
+        if(numSucessors(unitig) > 1) {
             char edge = toupper(seq[edge_pos]);
             if(!(edge == 'A' || edge == 'C' || edge == 'G' || edge == 'T')) {
                 // Invalid sequence, quit
@@ -314,13 +283,13 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
             bool found_succ = false;
 
             // Let's see if there's a successor that matches with the sequence
-            for(auto& succ : umap.getSuccessors()) {
+            for(auto& succ : unitig.getSuccessors()) {
                 if(succ.getMappedHead() == succ_kmer) {
                     // Add edge choice to each tree
                     std::transform(
                         nodes_to_annotate.begin(), nodes_to_annotate.end(), nodes_to_annotate.begin(),
-                        [edge] (std::shared_ptr<JunctionTreeNode> const& node) {
-                            return node->addEdge(edge);
+                        [edge] (JunctionTreeNode* node) -> JunctionTreeNode* {
+                            return &node->addEdge(edge);
                         });
 
                     found_succ = true;
@@ -359,24 +328,105 @@ void LinkAnnotator<T>::addLinksFromPath(vector<Kmer> const& path) {
         // as to be annotated by `addLinksFromSequence`.
         if(i > 0 && i < path.size() - 1) {
             if(nodeNeedsAnnotation(unitig)) {
-                nodes_to_annotate.push_back(db->createOrGetTree(unitig.getMappedTail()));
+                nodes_to_annotate.push_back(&db->createOrGetTree(unitig.getMappedTail()));
             }
         }
 
         // Follow path, and see which edge is taken at junctions
-        size_t num_succ = color >= 0 ? numSuccWithColor(unitig, color) : unitig.getSuccessors().cardinality();
-        if(i < path.size() - 1 && num_succ > 1) {
+        if(i < path.size() - 1 && numSucessors(unitig) > 1) {
             char edge = path[i+1].getChar(Kmer::k-1);
             std::transform(
                 nodes_to_annotate.begin(), nodes_to_annotate.end(), nodes_to_annotate.begin(),
-                [edge] (std::shared_ptr<JunctionTreeNode> const& node) {
-                    return node->addEdge(edge);
+                [edge] (JunctionTreeNode* node) -> JunctionTreeNode* {
+                    return &node->addEdge(edge);
                 });
         }
 
         ++i;
     }
 }
+
+/**
+ * Annotator class that only follows a given color. I.e., only junctions for a given color are annotated.
+ * @tparam T
+ */
+template<typename T>
+class ColorAssociatedAnnotator : public LinkAnnotator<T> {
+public:
+    ColorAssociatedAnnotator(T* _graph, LinkDB* _linkdb, size_t _color)
+        : LinkAnnotator<T>(_graph, _linkdb), color(_color)
+    { }
+    ColorAssociatedAnnotator(ColorAssociatedAnnotator const& o) = default;
+    ColorAssociatedAnnotator(ColorAssociatedAnnotator&& o) noexcept = default;
+
+    virtual ~ColorAssociatedAnnotator() = default;
+
+protected:
+    typename T::unitigmap_t findKmer(Kmer kmer) override {
+        auto umap = this->graph->find(kmer);
+        if(umap.isEmpty) {
+            return umap;
+        }
+
+        auto colorset = umap.getData()->getUnitigColors(umap);
+
+        if(colorset->contains(umap, color)) {
+            return umap;
+        } else {
+            typename T::unitigmap_t empty;
+            return empty;
+        }
+    }
+
+    size_t numSucessors(typename T::unitigmap_t const& unitig) override {
+        size_t num_with_color = 0;
+        for(auto& succ : unitig.getSuccessors()) {
+            auto colorset = succ.getData()->getUnitigColors(succ);
+
+            // Make mapping only include first or last k-mer (depending on whether we are on the reverse complement
+            // or not)
+            typename T::unitigmap_t first_kmer(succ);
+            if(!first_kmer.strand) {
+                first_kmer.dist = succ.len - 1;
+            }
+
+            first_kmer.len = 1;
+            first_kmer.strand = true;
+
+            if(colorset->contains(first_kmer, color)) {
+                ++num_with_color;
+            }
+        }
+
+        return num_with_color;
+    }
+
+    size_t numPredecessors(typename T::unitigmap_t const& unitig) override {
+        size_t num_with_color = 0;
+        for(auto& pred : unitig.getPredecessors()) {
+            auto colorset = pred.getData()->getUnitigColors(pred);
+            // Make mapping only include first or last k-mer (depending on whether we are on the reverse complement
+            // or not)
+            typename T::unitigmap_t last_kmer(pred);
+            if(last_kmer.strand) {
+                last_kmer.dist = last_kmer.len - 1;
+            }
+
+            last_kmer.len = 1;
+            last_kmer.strand = true;
+
+            if(colorset->contains(last_kmer, color)) {
+                ++num_with_color;
+            }
+        }
+
+        return num_with_color;
+    }
+
+private:
+    size_t color;
+};
+
 
 /**
  * Special link annotator for reference genomes.
@@ -387,9 +437,9 @@ void LinkAnnotator<T>::addLinksFromPath(vector<Kmer> const& path) {
  * @tparam T
  */
 template<typename T>
-class RefLinkAnnotator : public LinkAnnotator<T> {
+class RefLinkAnnotator : public ColorAssociatedAnnotator<T> {
 public:
-    RefLinkAnnotator(T* _graph, LinkDB* _db) : LinkAnnotator<T>(_graph, _db) { }
+    RefLinkAnnotator(T* _graph, LinkDB* _db, size_t _color) : ColorAssociatedAnnotator<T>(_graph, _db, _color) { }
     RefLinkAnnotator(RefLinkAnnotator const& o) = default;
     RefLinkAnnotator(RefLinkAnnotator&& o) noexcept = default;
     virtual ~RefLinkAnnotator() = default;

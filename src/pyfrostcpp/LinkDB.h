@@ -5,17 +5,19 @@
 #include <thread>
 #include <queue>
 #include <robin_hood.h>
+#include <tl/optional.hpp>
 
 #include "pyfrost.h"
 #include "JunctionTree.h"
 
 namespace pyfrost {
 
-using junction_tree_map = robin_hood::unordered_map<Kmer, std::shared_ptr<JunctionTreeNode>>;
+using junction_tree_map = robin_hood::unordered_map<Kmer, unique_ptr<JunctionTreeNode>>;
 
 class LinkDB {
 public:
     LinkDB() = default;
+    explicit LinkDB(size_t _color) : color(_color) { }
 
     LinkDB(LinkDB const& o) = default;
     LinkDB(LinkDB&& o) noexcept = default;
@@ -32,7 +34,7 @@ public:
     /**
      * Get a JunctionTreeNode representing all links for a given k-mer
      */
-    virtual std::shared_ptr<JunctionTreeNode> getLinks(Kmer const& kmer) = 0;
+    virtual JunctionTreeNode& getLinks(Kmer const& kmer) = 0;
 
     /**
      * Total number of JunctionTrees in this database
@@ -47,7 +49,34 @@ public:
     /**
      * Create a new junction tree for the given k-mer in the database, or return the existing one if available.
      */
-    virtual std::shared_ptr<JunctionTreeNode> createOrGetTree(Kmer const& kmer) = 0;
+    virtual JunctionTreeNode& createOrGetTree(Kmer const& kmer) = 0;
+
+    /**
+     * Get the color associated with this link database. If it's negative it's not associated with any color.
+     */
+    tl::optional<size_t> getColor() const {
+        return color;
+    }
+
+    /**
+     * Set the color associated with this link database.
+     */
+    void setColor(size_t _color) {
+        color = _color;
+    }
+
+    /**
+     * To be called after loading from a file, which doesn't store the parent pointers.
+     */
+    void fixTreeParents() {
+        for(auto& tree : getJunctionTrees()) {
+            tree.second->fixParents();
+        }
+    }
+
+protected:
+    /// With which color is this link database associated?
+    tl::optional<size_t> color;
 
 };
 

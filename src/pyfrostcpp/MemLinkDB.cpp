@@ -4,32 +4,33 @@
 
 namespace pyfrost {
 
-std::shared_ptr<JunctionTreeNode> MemLinkDB::createOrGetTree(Kmer const &kmer) {
+JunctionTreeNode& MemLinkDB::createOrGetTree(Kmer const &kmer) {
     auto it = junction_trees.find(kmer);
     if (it == junction_trees.end()) {
-        junction_trees.emplace(kmer, std::make_shared<JunctionTreeNode>());
-        return junction_trees[kmer];
+        junction_trees.emplace(kmer, std::make_unique<JunctionTreeNode>());
+        return *junction_trees[kmer];
     } else {
-        return it->second;
+        return *it->second;
     }
 }
 
-std::shared_ptr<JunctionTreeNode> MemLinkDB::getLinks(const Kmer &kmer) {
-    return junction_trees.at(kmer);
+JunctionTreeNode& MemLinkDB::getLinks(const Kmer &kmer) {
+    return *junction_trees.at(kmer);
 }
 
 void define_MemLinkDB(py::module& m) {
     auto py_MemLinkDB = py::class_<MemLinkDB, LinkDB>(m, "MemLinkDB")
         .def(py::init())
-        .def("get_links", [] (MemLinkDB& self, Kmer const& kmer) {
+        .def(py::init<size_t>())
+        .def("get_links", [] (MemLinkDB& self, Kmer const& kmer) -> JunctionTreeNode& {
             return self.getLinks(kmer);
-        }, py::keep_alive<0, 1>())
+        }, py::return_value_policy::reference)
 
         .def("__contains__", &MemLinkDB::hasLinks)
 
-        .def("__getitem__", [] (MemLinkDB& self, const Kmer& kmer) {
+        .def("__getitem__", [] (MemLinkDB& self, const Kmer& kmer) -> JunctionTreeNode& {
             return self.getLinks(kmer);
-        }, py::keep_alive<0, 1>())
+        }, py::return_value_policy::reference)
 
         .def("__len__", [] (MemLinkDB& self) {
             return self.numTrees();
@@ -51,6 +52,8 @@ void define_MemLinkDB(py::module& m) {
             cereal::BinaryInputArchive archive(ifile);
 
             archive(linkdb);
+            linkdb.fixTreeParents();
+
             return linkdb;
         });
 

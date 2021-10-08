@@ -10,8 +10,8 @@ namespace pyfrost {
 
 class MemLinkDB : public LinkDB {
 public:
-    MemLinkDB() = default;
-    MemLinkDB(MemLinkDB const& o) = default;
+    MemLinkDB() : LinkDB() { }
+    explicit MemLinkDB(size_t _color) : LinkDB(_color) { }
     MemLinkDB(MemLinkDB&& o) noexcept = default;
 
     MemLinkDB& operator=(MemLinkDB const& o) = default;
@@ -20,7 +20,7 @@ public:
         return junction_trees.contains(kmer);
     }
 
-    std::shared_ptr<JunctionTreeNode> getLinks(Kmer const& kmer) override;
+    JunctionTreeNode& getLinks(Kmer const& kmer) override;
 
     size_t numTrees() const override {
         return junction_trees.size();
@@ -30,11 +30,11 @@ public:
         return junction_trees;
     }
 
-    std::shared_ptr<JunctionTreeNode> createOrGetTree(Kmer const& kmer) override;
+    JunctionTreeNode& createOrGetTree(Kmer const& kmer) override;
 
     template<typename Archive>
     void serialize(Archive& ar) {
-        ar(junction_trees);
+        ar(junction_trees, color);
     }
 
 private:
