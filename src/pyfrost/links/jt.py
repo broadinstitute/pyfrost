@@ -89,14 +89,14 @@ def bfs(jt: JunctionTreeNode) -> Iterable[JunctionTreeNode]:
 @total_ordering
 class Link(NamedTuple):
     node: JunctionTreeNode
-    choices: str
+    choices: bytes
     coverage: numpy.ndarray
 
     def __eq__(self, other):
         if not isinstance(other, Link):
             raise NotImplemented
 
-        return self.choices == other.choices
+        return self.node == other.node
 
     def __lt__(self, other: Link):
         if not isinstance(other, Link):

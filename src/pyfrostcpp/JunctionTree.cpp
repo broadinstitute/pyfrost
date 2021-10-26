@@ -127,7 +127,7 @@ void define_JunctionTreeNode(py::module& m) {
             return self.getChildren().size();
         })
         .def("__iter__", [] (JunctionTreeNode& self) {
-            return py::make_key_iterator<py::return_value_policy::reference>(
+            return py::make_key_iterator(
                 self.getChildren().begin(), self.getChildren().end());
         }, py::keep_alive<0, 1>())
 
@@ -153,15 +153,22 @@ void define_JunctionTreeNode(py::module& m) {
         })
 
         .def("__hash__", [] (JunctionTreeNode& self) {
-            string choices = self.getJunctionChoices();
-            return hash<string>()(choices);
+            // Ownership of junction tree nodes is well defined in a tree, so we just check if the addresses match
+            // I.e., we expect that link databases are loaded only once, and each tree node then has a fixed memory
+            // address.
+            return hash<JunctionTreeNode*>()(&self);
         })
 
         .def("__eq__", [] (JunctionTreeNode& self, JunctionTreeNode& other) {
-            return self.getJunctionChoices() == other.getJunctionChoices();
+            // Ownership of junction tree nodes is well defined in a tree, so we just check if the addresses match
+            // I.e., we expect that link databases are loaded only once, and each tree node then has a fixed memory
+            // address.
+            return &self == &other;
         })
 
-        .def("junction_choices", &JunctionTreeNode::getJunctionChoices)
+        .def("junction_choices", [] (JunctionTreeNode& self) {
+            return py::bytes(self.getJunctionChoices());
+        })
         .def("coverages", [] (JunctionTreeNode& self) {
             return as_pyarray<vector<size_t>>(move(self.getCoverages()));
         })
