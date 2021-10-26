@@ -9,7 +9,7 @@ import logging
 import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterable, Union, Optional
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
 import networkx
 
@@ -21,8 +21,8 @@ if TYPE_CHECKING:
     from pyfrost.graph import BifrostDiGraph, Node
     from pyfrost.links.db import LinkDB
 
-__all__ = ['follow_link', 'link_junction_edges', 'NavigationEngine', 'oldest_link', 'link_supported_path_from',
-           'PickedUpLink']
+__all__ = ['follow_link', 'link_junction_edges', 'PickedUpLink', 'LinkManager', 'NavigationEngine',
+           'link_supported_path_from']
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +153,7 @@ class PickedUpLink:
         self.pos += 1
 
     def current_choice(self) -> str:
-        return self.link.choices[self.pos]
+        return chr(self.link.choices[self.pos])
 
     def current_cov(self) -> int:
         return self.link.coverage[self.pos]
@@ -195,30 +195,73 @@ class PickedUpLink:
         return not self.__lt__(o)
 
 
-def oldest_link(picked_up_links: list[PickedUpLink]) -> Optional[str]:
-    if not picked_up_links:
-        return
+class LinkManager:
+    """
+    Manage picked up links
+    """
 
-    oldest_links = set()
-    oldest = picked_up_links[0].dist
-    logger.debug("Oldest link distance: %d", oldest)
-    for dist, link, pos in picked_up_links:
-        if dist < oldest:
-            break
+    def __init__(self):
+        self.picked_up_links: list[PickedUpLink] = []
+        self.used_links: set[jt.JunctionTreeNode] = set()
+        self.debug = False
 
-        oldest_links.add(link.choices[pos])
+    def pick_up_links(self, linkdb: LinkDB, node: Kmer, tail: Kmer):
+        if tail not in linkdb:
+            return
 
-    if len(oldest_links) == 1:
-        logger.debug("%s%s, cov: %d, remaining: %d", "-" * picked_up_links[0].pos, "V",
-                     picked_up_links[0].current_cov(), picked_up_links[0].remaining())
-        logger.debug(picked_up_links[0].link.choices)
+        # New links should at least provide more information than the current oldest
+        min_length = self.get_oldest().remaining() + 1 if self.has_links() else None
+        to_add = []
+        for link in jt.get_all_links(linkdb[tail], min_length):
+            # Only use each link once
+            if link.node in self.used_links:
+                if self.debug:
+                    logger.info("Already picked up link with choices %s", link.choices)
+                continue
 
-        return next(iter(oldest_links))
-    else:
-        logger.debug("Multiple oldest links: %s, halting navigation.", oldest_links)
+            to_add.append(PickedUpLink(node, 0, link, 0))
+            self.used_links.add(link.node)
 
+        logger.debug("Picked up %d links", len(to_add))
+        self.picked_up_links.extend(sorted(to_add, reverse=True))
 
-Strategy = Callable[[list[PickedUpLink]], Optional[str]]
+    def increase_distances(self, dist: int):
+        for picked_up_link in self.picked_up_links:
+            picked_up_link.add_dist(dist)
+
+    def move_and_prune_links(self, choice: str):
+        new_picked_up_links: list[PickedUpLink] = []
+        for picked_up_link in self.picked_up_links:
+            if picked_up_link.pos + 1 >= len(picked_up_link.link.choices) or picked_up_link.current_choice() != choice:
+                # End of link or incompatible with junction choice
+                continue
+
+            picked_up_link.inc_pos()
+            new_picked_up_links.append(picked_up_link)
+
+        self.picked_up_links = new_picked_up_links
+
+    def clear(self):
+        self.picked_up_links = []
+        self.used_links = set()
+
+    def get_oldest(self) -> Optional[PickedUpLink]:
+        return self.picked_up_links[0] if self.picked_up_links else None
+
+    def has_links(self) -> bool:
+        return bool(self.picked_up_links)
+
+    def __bool__(self):
+        return self.has_links()
+
+    def __len__(self):
+        return len(self.picked_up_links)
+
+    def __iter__(self):
+        return iter(self.picked_up_links)
+
+    def __getitem__(self, item):
+        return self.picked_up_links[item]
 
 
 class NavigationEngine:
@@ -226,35 +269,39 @@ class NavigationEngine:
     This class implements all the logic to traverse a graph with support from links
     """
 
-    def __init__(self, g: BifrostDiGraph, linkdb: LinkDB, link_color: int = None, strategy: Strategy = None):
+    def __init__(self, g: BifrostDiGraph, linkdb: LinkDB, link_color: int = None):
         self.g: BifrostDiGraph = g
         self.linkdb: LinkDB = linkdb
         self.link_color: int = link_color
 
-        self.strategy = strategy if strategy else oldest_link
+        self.picked_up_links = LinkManager()
 
-        self.picked_up_links: list[PickedUpLink] = []
-        self.used_links: set[tuple[Kmer, str]] = set()
+    def clear_context(self):
+        self.picked_up_links.clear()
 
-    def _pick_up_links(self, node: Kmer, tail: Kmer):
-        if tail not in self.linkdb:
+    def pick_successor(self) -> Optional[str]:
+        if not self.picked_up_links:
             return
 
-        # New links should at least provide more information than the current oldest
-        min_length = self.picked_up_links[0].remaining() + 1 if self.picked_up_links else None
-        to_add = []
-        for link in jt.get_all_links(self.linkdb[tail], min_length):
-            # Only use each link once
-            if (tail, link.choices) in self.used_links:
-                continue
+        oldest_links = set()
+        oldest = self.picked_up_links.get_oldest().dist
+        logger.debug("Oldest link distance: %d", oldest)
+        for dist, link, pos in self.picked_up_links:
+            if dist < oldest:
+                break
 
-            to_add.append(PickedUpLink(node, 0, link, 0))
-            self.used_links.add((tail, link.choices))
+            oldest_links.add(link.choices[pos])
 
-        logger.debug("Picked up %d links", len(to_add))
-        self.picked_up_links.extend(sorted(to_add, reverse=True))
+        if len(oldest_links) == 1:
+            logger.debug("%s%s, cov: %d, remaining: %d", "-" * self.picked_up_links.get_oldest().pos, "V",
+                         self.picked_up_links.get_oldest().current_cov(), self.picked_up_links.get_oldest().remaining())
+            logger.debug(self.picked_up_links.get_oldest().link.choices.decode('utf-8'))
 
-    def _find_next_node(self, curr_node: Kmer, neighbors_dict: dict[str, Kmer]):
+            return chr(next(iter(oldest_links)))
+        else:
+            logger.debug("Multiple oldest links: %s, halting navigation.", oldest_links)
+
+    def _find_next_node(self, curr_node: Kmer, neighbors_dict: dict[str, Kmer]) -> Optional[Kmer]:
         # Which neighbors are supported by the links?
         if len(neighbors_dict) == 0:
             return
@@ -266,7 +313,7 @@ class NavigationEngine:
             else:
                 return neighbor
         else:
-            choice = self.strategy(self.picked_up_links)
+            choice = self.pick_successor()
 
             if choice:
                 if choice not in neighbors_dict:
@@ -280,7 +327,7 @@ class NavigationEngine:
 
     def traverse(self, source: Union[Node, Sequence[Node]], distance_limit: int = None,
                  stop_unitig: Union[Kmer, set[Kmer]] = None,
-                 with_dist: bool = False) -> Iterable[Union[Kmer, tuple[Kmer, int]]]:
+                 with_dist: bool = False, clear_context: bool = True) -> Iterable[Union[Kmer, tuple[Kmer, int]]]:
         """
         Builds the longest contiguous path possible as supported by the links. Halts at branch point where the links
         don't provide a clear choice.
@@ -300,6 +347,10 @@ class NavigationEngine:
             Stop traversal when reaching the given unitig.
         with_dist : bool
             Include the current distance from the source with each yield of a node.
+        clear_context : bool
+            If calling traverse multiple times on the same `NavigationEngine` object, by default any links picked up
+            from the previous `traverse` call will be cleared. In some situations it might be useful to retain those
+            links to retain genome context of the engine.
 
         Yields
         ------
@@ -318,8 +369,8 @@ class NavigationEngine:
         elif not isinstance(stop_unitig, set):
             stop_unitig = {stop_unitig}
 
-        self.picked_up_links = []
-        self.used_links = set()
+        if clear_context:
+            self.clear_context()
 
         n = source[0]
         ndata = self.g.nodes[n]
@@ -330,19 +381,20 @@ class NavigationEngine:
             logger.debug("Current node: %s (tail: %s)", n, tail)
 
             # Pick up any links associated with this node
-            self._pick_up_links(n, tail)
+            self.picked_up_links.pick_up_links(self.linkdb, n, tail)
 
             # Key neighbors by the nucleotide added
             neighbors_dict = {
-                str(neighbor)[-1]: neighbor for neighbor in self.g.color_restricted_successors(n, self.link_color)
+                neighbor[-1]: neighbor for neighbor in self.g.color_restricted_successors(n, self.link_color)
             }
 
             # Follow source path first before using the links
             if source_ix < len(source) - 1:
                 source_ix += 1
-                choice = str(source[source_ix])[-1]
+                choice = source[source_ix][-1]
 
                 if choice not in neighbors_dict:
+                    breakpoint()
                     raise PyfrostInvalidPathError(
                         f"Given source path is not a valid path through the graph!\n"
                         f"Source path: {source}\n"
@@ -354,9 +406,9 @@ class NavigationEngine:
                 ndata = self.g.nodes[n]
 
                 if len(neighbors_dict) > 1:
-                    self._move_and_prune_links(choice)
+                    self.picked_up_links.move_and_prune_links(choice)
 
-                self._increase_distances(ndata['length'])
+                self.picked_up_links.increase_distances(ndata['length'])
             else:
                 n = self._find_next_node(n, neighbors_dict)
                 if n:
@@ -364,9 +416,9 @@ class NavigationEngine:
                     curr_dist += ndata['length']
 
                     if len(neighbors_dict) > 1:
-                        self._move_and_prune_links(str(n)[-1])
+                        self.picked_up_links.move_and_prune_links(n[-1])
 
-                    self._increase_distances(ndata['length'])
+                    self.picked_up_links.increase_distances(ndata['length'])
 
                     if distance_limit and curr_dist > distance_limit:
                         n = None
@@ -379,29 +431,13 @@ class NavigationEngine:
                     if n in stop_unitig:
                         n = None
 
-    def _increase_distances(self, dist: int):
-        for picked_up_link in self.picked_up_links:
-            picked_up_link.add_dist(dist)
-
-    def _move_and_prune_links(self, choice: str):
-        new_picked_up_links: list[PickedUpLink] = []
-        for picked_up_link in self.picked_up_links:
-            if picked_up_link.pos + 1 >= len(picked_up_link.link.choices) or picked_up_link.current_choice() != choice:
-                # End of link or incompatible with junction choice
-                continue
-
-            picked_up_link.inc_pos()
-            new_picked_up_links.append(picked_up_link)
-
-        self.picked_up_links = new_picked_up_links
-
 
 def link_supported_path_from(g: BifrostDiGraph, linkdb: LinkDB, source: Union[Node, Sequence[Node]],
                              link_color: int = None, distance_limit: int = None,
                              stop_unitig: Union[Kmer, set[Kmer]] = None,
                              with_dist: bool = False) -> Iterable[Union[Kmer, tuple[Kmer, int]]]:
     """
-    Shortcut for building a link supported path with default navigation settings and strategy.
+    Shortcut for building a link supported path with default navigation settings.
     """
 
     engine = NavigationEngine(g, linkdb, link_color)
