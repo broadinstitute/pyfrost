@@ -6,13 +6,15 @@
 
 from __future__ import annotations
 from typing import Union, Iterable
+from collections import deque, abc
 
 import networkx
 
 from pyfrostcpp import PyfrostCCDBG, NodesDict, NodeDataDict, AdjacencyOuterDict, AdjacencyType, Kmer
 from pyfrost.views import PyfrostAdjacencyView, PyfrostNodeView
 
-__all__ = ['BifrostDiGraph', 'Node', 'NodesDict', 'NodeDataDict', 'AdjacencyOuterDict', 'AdjacencyType']
+__all__ = ['BifrostDiGraph', 'Node', 'NodesDict', 'NodeDataDict', 'AdjacencyOuterDict', 'AdjacencyType',
+           'get_neighborhood']
 
 
 def disable_factory_func():
@@ -135,11 +137,10 @@ class BifrostDiGraph(networkx.DiGraph):
             if not isinstance(allowed_colors, set):
                 allowed_colors = {allowed_colors}
 
-            for neighbor in self.successors(node):
-                colors = set(self.nodes[neighbor]['colors'])
+            if not isinstance(node, Kmer):
+                node = Kmer(node)
 
-                if allowed_colors & colors:
-                    yield neighbor
+            yield from (n.head for n in self._ccdbg.color_restricted_successors(node, allowed_colors))
 
     color_restricted_neighbors = color_restricted_successors
 
@@ -154,8 +155,61 @@ class BifrostDiGraph(networkx.DiGraph):
             if not isinstance(allowed_colors, set):
                 allowed_colors = {allowed_colors}
 
-            for neighbor in self.predecessors(node):
-                colors = set(self.nodes[neighbor]['colors'])
+            if not isinstance(node, Kmer):
+                node = Kmer(node)
 
-                if allowed_colors & colors:
-                    yield neighbor
+            yield from (n.head for n in self._ccdbg.color_restricted_predecessors(node, allowed_colors))
+
+
+def get_neighborhood(g: BifrostDiGraph, source, radius=3, both_directions=True, ext_colors=None):
+    """
+    Get the neighborhood around one or more given source nodes.
+
+    Returns a subgraph with all neighboring nodes reachable within a maximum
+    number of edge traversals (`radius`) from a source node.
+
+    If `both_directions` is True, then it also considers predecessors of the nodes,
+    otherwise it will only traverse edges in the forward direction.
+
+    Optionally, you can give a set of colors for which the neighborhood is extended. If a node has a color other than
+    the ones given in `ext_colors` it is not further extended.
+    """
+
+    neighborhood = networkx.DiGraph()
+    neighborhood_nodes = set()
+
+    queue = deque()
+    if isinstance(source, abc.Iterable):
+        for src_node in source:
+            queue.append((0, Kmer(src_node)))
+    else:
+        queue.append((0, Kmer(source)))
+
+    if ext_colors is not None and not isinstance(ext_colors, set):
+        ext_colors = {ext_colors}
+
+    while queue:
+        level, node = queue.popleft()
+
+        if node in neighborhood_nodes:
+            continue
+
+        ndata = g.nodes[node]
+        neighborhood_nodes.add(node)
+
+        # Don't extend any further if ext_colors is given and the node has a different color
+        if level < radius and (ext_colors is None or ext_colors & ndata['colors']):
+            for succ in g.successors(node):
+                if succ in neighborhood:
+                    continue
+
+                queue.append((level + 1, succ))
+
+            if both_directions:
+                for pred in g.predecessors(node):
+                    if pred in neighborhood:
+                        continue
+
+                    queue.append((level + 1, pred))
+
+    return g.subgraph(neighborhood_nodes)
