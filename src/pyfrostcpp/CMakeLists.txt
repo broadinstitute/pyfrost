@@ -25,6 +25,7 @@ pybind11_add_module(pyfrostcpp
         LinkAnnotator.h
         LinkAnnotator.cpp
         Serialize.h
+        Neighbors.h
         pyfrost.h
         pyfrost.cpp
         )

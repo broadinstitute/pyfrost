@@ -14,6 +14,7 @@
 #include "LinkDB.h"
 #include "MemLinkDB.h"
 #include "LinkAnnotator.h"
+#include "Neighbors.h"
 
 namespace py = pybind11;
 
@@ -70,6 +71,19 @@ void define_PyfrostCCDBG(py::module& m) {
 
         .def("remove", py::overload_cast<PyfrostCCDBG&, Kmer const&>(&removeUnitig))
         .def("remove", py::overload_cast<PyfrostCCDBG&, char const*>(&removeUnitig))
+
+        .def("color_restricted_successors", [] (PyfrostCCDBG& self, Kmer const& node,
+                                                unordered_set<size_t> const& allowed_colors) {
+            auto unitig = self.find(node, true);
+
+            return colorRestrictedSuccessors(unitig, allowed_colors);
+        })
+        .def("color_restricted_predecessors", [] (PyfrostCCDBG& self, Kmer const& node,
+                unordered_set<size_t> const& allowed_colors) {
+            auto unitig = self.find(node, true);
+
+            return colorRestrictedPredecessors(unitig, allowed_colors);
+        })
         ;
 }
 
