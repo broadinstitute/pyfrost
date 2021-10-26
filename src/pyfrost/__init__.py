@@ -9,6 +9,8 @@ from pyfrost.seq import *
 from pyfrost.graph import *
 from pyfrost.counter import *
 
+from pyfrostcpp import k_g
+
 from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
