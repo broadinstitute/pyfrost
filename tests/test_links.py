@@ -8,36 +8,36 @@ from pyfrost import Kmer, links, reverse_complement
 
 def get_known_links():
    return {
-       Kmer("TTCGA"): {"TGGCG"},
-       Kmer("TCGAT"): {"GGCG"},
-       Kmer("GCGAT"): {"GCG", "CG"},
-       Kmer("GCCAC"): {"G"},
+       Kmer("TTCGA"): {b"TGGCG"},
+       Kmer("TCGAT"): {b"GGCG"},
+       Kmer("GCGAT"): {b"GCG", b"CG"},
+       Kmer("GCCAC"): {b"G"},
     }
 
 
 def get_known_links_paired_end_same_unitig():
     return {
-        Kmer("TTCGA"): {"TGGCG"},
-        Kmer("TCGAT"): {"GGCG"},
-        Kmer("GCGAT"): {"GCG", "CG"},
-        Kmer("CGTGG"): {"CCAA"},
-        Kmer("GGCAT"): {"CCAA"},
-        Kmer("CGCAT"): {"CAA", "AA"},
-        Kmer("ATCGA"): {"A"},
-        Kmer("GCCAC"): {"G"},
+        Kmer("TTCGA"): {b"TGGCG"},
+        Kmer("TCGAT"): {b"GGCG"},
+        Kmer("GCGAT"): {b"GCG", b"CG"},
+        Kmer("CGTGG"): {b"CCAA"},
+        Kmer("GGCAT"): {b"CCAA"},
+        Kmer("CGCAT"): {b"CAA", b"AA"},
+        Kmer("ATCGA"): {b"A"},
+        Kmer("GCCAC"): {b"G"},
     }
 
 
 def get_known_links_paired_end_on_repeat():
     return {
-        Kmer("TTCGA"): {"TG"},
-        Kmer("TCGAT"): {"G"},
-        Kmer("GCGAT"): {"CG"},
-        Kmer("CGTGG"): {"C"},
-        Kmer("GGCAT"): {"C"},
-        Kmer("CGCAT"): {"AA"},
-        Kmer("ATCGA"): {"A"},
-        Kmer("GCCAC"): {"G"},
+        Kmer("TTCGA"): {b"TG"},
+        Kmer("TCGAT"): {b"G"},
+        Kmer("GCGAT"): {b"CG"},
+        Kmer("CGTGG"): {b"C"},
+        Kmer("GGCAT"): {b"C"},
+        Kmer("CGCAT"): {b"AA"},
+        Kmer("ATCGA"): {b"A"},
+        Kmer("GCCAC"): {b"G"},
     }
 
 
@@ -63,7 +63,7 @@ def test_mapping_result(mccortex):
     result = links.add_links_from_single_sequence(g, linkdb, "TTTCGATGCGATGCGATGCCACG")
     matches = result.matching_kmers()
     assert numpy.all(matches)
-    assert result.junctions == "TGGCG"
+    assert result.junctions == b"TGGCG"
     assert result.start_unitig() == Kmer("ACTGA")
     assert result.end_unitig() == Kmer("CCACG")
     assert result.mapping_start == 0
@@ -78,7 +78,7 @@ def test_mapping_result(mccortex):
     matches = result.matching_kmers()
     assert numpy.all(matches[:-3])
     assert not numpy.any(matches[-3:])
-    assert result.junctions == "TGGCG"
+    assert result.junctions == b"TGGCG"
     assert result.start_unitig() == Kmer("ACTGA")
     assert result.end_unitig() == Kmer("CCACG")
     assert result.mapping_start == 0
