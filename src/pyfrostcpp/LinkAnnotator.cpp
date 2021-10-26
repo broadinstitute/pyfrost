@@ -12,10 +12,10 @@ void define_LinkAnnotator(py::module& m) {
          .def("add_links_from_path", &LinkAnnotator<PyfrostCCDBG>::addLinksFromPath);
 
     py::class_<ColorAssociatedAnnotator<PyfrostCCDBG>, LinkAnnotator<PyfrostCCDBG>>(m, "ColorAssociatedAnnotator")
-        .def(py::init<PyfrostCCDBG*, LinkDB*, size_t>());
+        .def(py::init<PyfrostCCDBG*, LinkDB*>());
 
     py::class_<RefLinkAnnotator<PyfrostCCDBG>, ColorAssociatedAnnotator<PyfrostCCDBG>>(m, "RefLinkAnnotator")
-        .def(py::init<PyfrostCCDBG*, LinkDB*, size_t>());
+        .def(py::init<PyfrostCCDBG*, LinkDB*>());
 
     m.def("add_links_from_fasta", &addLinksFromFasta<PyfrostCCDBG>, py::call_guard<py::gil_scoped_release>());
 }
@@ -27,7 +27,9 @@ void define_MappingResult(py::module& m) {
         .def("end_unitig", &MappingResult::end_unitig)
         .def_readonly("mapping_start", &MappingResult::mapping_start)
         .def_readonly("mapping_end", &MappingResult::mapping_end)
-        .def_readonly("junctions", &MappingResult::junctions)
+        .def_property_readonly("junctions", [] (MappingResult& self) {
+            return py::bytes(self.junctions);
+        })
         .def_readonly("unitig_visits", &MappingResult::unitig_visits)
         .def("matching_kmers", [] (MappingResult& self) {
             // Make copy and return as NumPy array

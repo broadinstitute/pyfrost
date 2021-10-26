@@ -104,7 +104,7 @@ def add_links_from_ref_genome(graph: BifrostDiGraph, db: LinkDB, genome: str) ->
 
 
 def add_links_from_paired_read(g: BifrostDiGraph, db: LinkDB, read1: str, read2: str,
-                               first_pass_db: LinkDB = None, color: int = None,
+                               first_pass_db: LinkDB = None,
                                read2_orientation: Strand = Strand.REVERSE):
     read1_rc = pyfrostcpp.reverse_complement(read1)
     read2_rc = pyfrostcpp.reverse_complement(read2)
@@ -112,25 +112,25 @@ def add_links_from_paired_read(g: BifrostDiGraph, db: LinkDB, read1: str, read2:
     if read2_orientation == Strand.REVERSE:
         # First: R1 ----> <---- R2
         logger.debug("Add links R1 ---> <--- R2")
-        result1 = add_links_from_paired_read_with_extension(g, db, read1, read2_rc, first_pass_db, color)
+        result1 = add_links_from_paired_read_with_extension(g, db, read1, read2_rc, first_pass_db)
 
         # Flip them around: R2 ----> <---- R1
         logger.debug("Add links R2 ---> <--- R1")
-        result2 = add_links_from_paired_read_with_extension(g, db, read2, read1_rc, first_pass_db, color)
+        result2 = add_links_from_paired_read_with_extension(g, db, read2, read1_rc, first_pass_db)
     else:
         # First: R1 ----> ----> R2
         logger.debug("Add links R1 ---> ---> R2")
-        result1 = add_links_from_paired_read_with_extension(g, db, read1, read2, first_pass_db, color)
+        result1 = add_links_from_paired_read_with_extension(g, db, read1, read2, first_pass_db)
 
         # Flip them around: R2 <---- <---- R1
         logger.debug("Add links R2 <--- <--- R1")
-        result2 = add_links_from_paired_read_with_extension(g, db, read2_rc, read1_rc, first_pass_db, color)
+        result2 = add_links_from_paired_read_with_extension(g, db, read2_rc, read1_rc, first_pass_db)
 
     return PairedReadMappingResult(result1, result2)
 
 
 def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, read1: str, read2: str,
-                                              first_pass_db: LinkDB = None, color: int = None):
+                                              first_pass_db: LinkDB = None):
     """
     This function adds links from the given reads. It attempts to extend the links generated from read 1 with
     junction choices from read 2. If there's any ambiguity about how to extend them (k-mer mismatches, repeats,
@@ -138,7 +138,7 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
 
     Assumes R1 and R2 are oriented in the same direction.
     """
-    annotator = LinkAnnotator(g._ccdbg, db) if color is None else ColorAssociatedAnnotator(g._ccdbg, db, color)
+    annotator = LinkAnnotator(g._ccdbg, db) if db.color is None else ColorAssociatedAnnotator(g._ccdbg, db)
     mapping_result = annotator.add_links_from_sequence(read1)
     read1_end_unitig = mapping_result.end_unitig()
     read1_kmer_matches = mapping_result.matching_kmers()
@@ -154,6 +154,9 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
         umap = g.find(read2_start_kmer)
     except StopIteration:
         # No valid k-mers found
+        umap = None
+
+    if umap and db.color is not None and db.color not in umap['colors']:
         umap = None
 
     if umap and read1_end_unitig:
@@ -179,7 +182,7 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
                 # TODO: distance limit configurable
                 logger.debug("search path...")
                 logger.debug("Read 1 mapped path: %s", mapping_result.path)
-                path = list(link_supported_path_from(g, first_pass_db, mapping_result.path, link_color=color,
+                path = list(link_supported_path_from(g, first_pass_db, mapping_result.path, link_color=db.color,
                                                      distance_limit=1500, stop_unitig=read2_start_unitig))
 
                 if path and path[-1] == read2_start_unitig:
@@ -207,7 +210,8 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
 
 
 def add_links_from_fasta(graph: BifrostDiGraph, linkdb: LinkDB, files: Union[str, Path, list[str], list[Path]],
-                         color: int = None, annotator_cls: Type[LinkAnnotator] = LinkAnnotator, batch_size: int = 1000):
+                         annotator_cls: Type[LinkAnnotator] = LinkAnnotator, batch_size: int = 1000,
+                         both_strands: bool = False):
     """
     Thread sequences read from the given file(s) through the graph, and annotate which branches were taken as links
     in `linkdb`. Supports compressed FASTA files too.
@@ -227,6 +231,8 @@ def add_links_from_fasta(graph: BifrostDiGraph, linkdb: LinkDB, files: Union[str
         `RefLinkAnnotator` here.
     batch_size : int
         Number of sequences to read per batch. Defaults to 1000.
+    both_strands : bool
+        Whether to add links from both the forward and reverse orientations of each sequence in the FASTA file.
     """
 
     if not isinstance(files, list):
@@ -234,13 +240,13 @@ def add_links_from_fasta(graph: BifrostDiGraph, linkdb: LinkDB, files: Union[str
 
     files = [p if isinstance(p, str) else str(p) for p in files]
 
-    annotator = annotator_cls(graph._ccdbg, linkdb) if color is None else annotator_cls(graph._ccdbg, linkdb, color)
-    return pyfrostcpp.add_links_from_fasta(annotator, files, batch_size)
+    annotator = annotator_cls(graph._ccdbg, linkdb)
+    return pyfrostcpp.add_links_from_fasta(annotator, files, batch_size, both_strands)
 
 
 def add_links_from_fastq_single(g: BifrostDiGraph, linkdb: LinkDB, file_path: Union[str, Path],
-                                color: int = None, mapping_results_out: TextIO = None):
-    annotator = LinkAnnotator(g._ccdbg, linkdb) if color is None else ColorAssociatedAnnotator(g._ccdbg, linkdb, color)
+                                mapping_results_out: TextIO = None):
+    annotator = LinkAnnotator(g._ccdbg, linkdb) if linkdb.color is None else ColorAssociatedAnnotator(g._ccdbg, linkdb)
 
     # TODO: parallelize? Need to make LinkDB thread-safe then
     with open_compressed(file_path, "rt") as fp:
@@ -262,7 +268,7 @@ def add_links_from_fastq_single(g: BifrostDiGraph, linkdb: LinkDB, file_path: Un
 
 
 def add_links_from_fastq(g: BifrostDiGraph, linkdb: LinkDB,
-                         files: Union[str, Path, list[str], list[Path]], twopass: bool = True, color: int = None,
+                         files: Union[str, Path, list[str], list[Path]], twopass: bool = True,
                          read2_orientation: Strand = Strand.REVERSE, mapping_results_out: TextIO = None):
     if not isinstance(files, list):
         files = list(files)
@@ -270,19 +276,26 @@ def add_links_from_fastq(g: BifrostDiGraph, linkdb: LinkDB,
     if not files:
         return
 
+    if linkdb.color is None:
+        logger.info("Generating links for the whole graph (no color selected)...")
+    else:
+        logger.info("Generating links for color %s...", g.graph['color_names'][linkdb.color])
+
     if len(files) == 1:
         # Single read file
         logger.info("PASS 1 / 1: Adding links from %s (single-end mode)...", files[0])
-        add_links_from_fastq_single(g, linkdb, files[0], color, mapping_results_out=mapping_results_out)
+        add_links_from_fastq_single(g, linkdb, files[0], mapping_results_out=mapping_results_out)
     else:
         # Paired-end reads
         first_pass_db = None
         if twopass:
             # In the first pass we just add links independently without pair information
             logger.info("PASS 1 / 2: Building first-pass link database...")
-            first_pass_db = MemLinkDB(color)
-            add_links_from_fastq_single(g, first_pass_db, files[0], color)
-            add_links_from_fastq_single(g, first_pass_db, files[1], color)
+            first_pass_db = MemLinkDB()
+            first_pass_db.color = linkdb.color
+
+            add_links_from_fastq_single(g, first_pass_db, files[0])
+            add_links_from_fastq_single(g, first_pass_db, files[1])
 
             logger.info("PASS 2 / 2: Adding links from %s and %s (paired-end mode), utilizing the first-pass "
                         "database...", *files)
@@ -295,7 +308,7 @@ def add_links_from_fastq(g: BifrostDiGraph, linkdb: LinkDB,
                     continue
 
                 result = add_links_from_paired_read(g, linkdb, read1.seq, read2.seq,
-                                                    first_pass_db=first_pass_db, color=color,
+                                                    first_pass_db=first_pass_db,
                                                     read2_orientation=read2_orientation)
 
                 if mapping_results_out:

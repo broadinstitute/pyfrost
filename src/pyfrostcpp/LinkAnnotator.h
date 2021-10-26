@@ -4,8 +4,10 @@
 #include "pyfrost.h"
 #include "JunctionTree.h"
 #include "LinkDB.h"
+#include "Neighbors.h"
 
 #include <condition_variable>
+#include <algorithm>
 
 namespace pyfrost {
 
@@ -139,15 +141,22 @@ protected:
     /**
      * Returns number of successors of a given node, can be overridden for e.g. color specific successors.
      */
-    virtual size_t numSucessors(typename T::unitigmap_t const& unitig) {
+    virtual size_t numSuccessors(typename T::unitigmap_t const& unitig) {
         return unitig.getSuccessors().cardinality();
     }
 
     /**
      * Returns number of predecessors of a given node, can be overridden for e.g. color specific predecessors.
      */
-    virtual size_t numPredecessors(typename T::unitigmap_t const& unitig) {
+    virtual size_t numPredecessors(typename T::unitigmap_t const& unitig) const {
         return unitig.getPredecessors().cardinality();
+    }
+
+    /**
+     * Get the list of successor nodes for a given unitig. Can be overriden for e.g. color specific successors.
+     */
+    virtual vector<typename T::unitigmap_t> getSuccessors(typename T::unitigmap_t const& unitig) const {
+        return {unitig.getSuccessors().begin(), unitig.getSuccessors().end()};
     }
 
     T* graph;
@@ -164,7 +173,7 @@ bool LinkAnnotator<T>::nodeNeedsAnnotation(typename T::unitigmap_t const& unitig
     }
 
     for(auto& pred : unitig.getPredecessors()) {
-        if(numSucessors(pred) > 1) {
+        if(numSuccessors(pred) > 1) {
             return true;
         }
     }
@@ -191,6 +200,8 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
     MappingResult mapping;
     mapping.matches.resize(seq.length() - Kmer::k + 1, 0);
 
+    vector<typename T::unitigmap_t> successors;
+
     KmerIterator kmer_iter(seq.c_str()), kmer_end;
     for(; kmer_iter != kmer_end; ++kmer_iter) {
         Kmer kmer;
@@ -209,6 +220,13 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
 
         auto unitig = umap.mappingToFullUnitig();
         auto unitig_kmer = unitig.getMappedHead();
+
+        // `successors` is still populated with successors from the previous unitig, check if our current unitig is a
+        // direct successor of it, otherwise we would have an invalid path through the graph.
+        if(!successors.empty() && std::find(successors.begin(), successors.end(), unitig) == successors.end()) {
+            // Not a direct successor, quit
+            break;
+        }
 
         if(!first_unitig_found) {
             // First k-mer that is present in the graph
@@ -272,7 +290,8 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
             break;
         }
 
-        if(numSucessors(unitig) > 1) {
+        successors = getSuccessors(unitig);
+        if(successors.size() > 1) {
             char edge = toupper(seq[edge_pos]);
             if(!(edge == 'A' || edge == 'C' || edge == 'G' || edge == 'T')) {
                 // Invalid sequence, quit
@@ -283,7 +302,7 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
             bool found_succ = false;
 
             // Let's see if there's a successor that matches with the sequence
-            for(auto& succ : unitig.getSuccessors()) {
+            for(auto& succ : successors) {
                 if(succ.getMappedHead() == succ_kmer) {
                     // Add edge choice to each tree
                     std::transform(
@@ -333,7 +352,7 @@ void LinkAnnotator<T>::addLinksFromPath(vector<Kmer> const& path) {
         }
 
         // Follow path, and see which edge is taken at junctions
-        if(i < path.size() - 1 && numSucessors(unitig) > 1) {
+        if(i < path.size() - 1 && numSuccessors(unitig) > 1) {
             char edge = path[i+1].getChar(Kmer::k-1);
             std::transform(
                 nodes_to_annotate.begin(), nodes_to_annotate.end(), nodes_to_annotate.begin(),
@@ -353,9 +372,14 @@ void LinkAnnotator<T>::addLinksFromPath(vector<Kmer> const& path) {
 template<typename T>
 class ColorAssociatedAnnotator : public LinkAnnotator<T> {
 public:
-    ColorAssociatedAnnotator(T* _graph, LinkDB* _linkdb, size_t _color)
-        : LinkAnnotator<T>(_graph, _linkdb), color(_color)
-    { }
+    ColorAssociatedAnnotator(T* _graph, LinkDB* _linkdb)
+        : LinkAnnotator<T>(_graph, _linkdb), color(_linkdb->getColor().value_or(0))
+    {
+        if(!this->db->getColor()) {
+            throw std::runtime_error("ColorAssociatedAnnotator can only be instantiated with a link database "
+                                     "associated with a color.");
+        }
+    }
     ColorAssociatedAnnotator(ColorAssociatedAnnotator const& o) = default;
     ColorAssociatedAnnotator(ColorAssociatedAnnotator&& o) noexcept = default;
 
@@ -378,7 +402,7 @@ protected:
         }
     }
 
-    size_t numSucessors(typename T::unitigmap_t const& unitig) override {
+    size_t numSuccessors(typename T::unitigmap_t const& unitig) override {
         size_t num_with_color = 0;
         for(auto& succ : unitig.getSuccessors()) {
             auto colorset = succ.getData()->getUnitigColors(succ);
@@ -401,7 +425,7 @@ protected:
         return num_with_color;
     }
 
-    size_t numPredecessors(typename T::unitigmap_t const& unitig) override {
+    size_t numPredecessors(typename T::unitigmap_t const& unitig) const override {
         size_t num_with_color = 0;
         for(auto& pred : unitig.getPredecessors()) {
             auto colorset = pred.getData()->getUnitigColors(pred);
@@ -423,6 +447,10 @@ protected:
         return num_with_color;
     }
 
+    vector<typename T::unitigmap_t> getSuccessors(typename T::unitigmap_t const& unitig) const override {
+        return colorRestrictedSuccessors(unitig, {color});
+    }
+
 private:
     size_t color;
 };
@@ -439,7 +467,7 @@ private:
 template<typename T>
 class RefLinkAnnotator : public ColorAssociatedAnnotator<T> {
 public:
-    RefLinkAnnotator(T* _graph, LinkDB* _db, size_t _color) : ColorAssociatedAnnotator<T>(_graph, _db, _color) { }
+    RefLinkAnnotator(T* _graph, LinkDB* _db) : ColorAssociatedAnnotator<T>(_graph, _db) { }
     RefLinkAnnotator(RefLinkAnnotator const& o) = default;
     RefLinkAnnotator(RefLinkAnnotator&& o) noexcept = default;
     virtual ~RefLinkAnnotator() = default;
@@ -450,7 +478,7 @@ protected:
             first_node_annotated = true;
             return true;
         } else {
-            return LinkAnnotator<T>::nodeNeedsAnnotation(unitig);
+            return ColorAssociatedAnnotator<T>::nodeNeedsAnnotation(unitig);
         }
     }
 
@@ -464,7 +492,7 @@ private:
  */
 template<typename T>
 void addLinksFromFasta(LinkAnnotator<T>& annotator, vector<string> const& filepaths,
-                       size_t batch_size=1e3) {
+                       size_t batch_size=1e3, bool both_strands = false) {
     atomic<bool> finished_reading(false);
     mutex queue_lock;
     queue<unique_ptr<vector<string>>> seq_blocks;
@@ -472,6 +500,7 @@ void addLinksFromFasta(LinkAnnotator<T>& annotator, vector<string> const& filepa
 
     thread link_creator_thread([&] () {
         while(true) {
+            cerr << "link_creator_thread :: waiting for sequences..." << endl;
             unique_lock<mutex> guard(queue_lock);
             sequences_ready.wait(guard, [&] () { return !seq_blocks.empty() || finished_reading; });
 
@@ -480,12 +509,17 @@ void addLinksFromFasta(LinkAnnotator<T>& annotator, vector<string> const& filepa
                 return;
             }
 
+            cerr << "link_creator_thread :: moving block of sequences from the queue." << endl;
             unique_ptr<vector<string>> sequences = std::move(seq_blocks.front());
             seq_blocks.pop();
             guard.unlock();
 
+            cerr << "link_creator_thread :: creating links..." << endl;
             for(string const& seq : *sequences) {
                 annotator.addLinksFromSequence(seq);
+                if(both_strands) {
+                    annotator.addLinksFromSequence(reverse_complement(seq));
+                }
             }
 
             cerr << "link_creator_thread :: processed block of " << sequences->size() << " sequences.\n" << flush;
@@ -507,8 +541,9 @@ void addLinksFromFasta(LinkAnnotator<T>& annotator, vector<string> const& filepa
             if(num_read >= batch_size) {
                 // When enough data read, push sequences on the queue. This way we don't have to lock the queue that
                 // often.
+                cerr << "reader_thread :: waiting for lock..." << endl;
                 unique_lock<mutex> guard(queue_lock);
-                cerr << "reader_thread :: read block of " << sequences->size() << " sequences.\n" << flush;
+                cerr << "reader_thread :: queuing block of " << sequences->size() << " sequences." << endl;
                 seq_blocks.emplace(std::move(sequences));
                 guard.unlock();
 
@@ -521,6 +556,7 @@ void addLinksFromFasta(LinkAnnotator<T>& annotator, vector<string> const& filepa
 
         // Push remaining sequences on the queue
         if(!sequences->empty()) {
+            cerr << "reader_thread :: waiting for lock..." << endl;
             unique_lock<mutex> guard(queue_lock);
             cerr << "reader_thread :: read block of " << sequences->size() << " sequences.\n" << flush;
             seq_blocks.emplace(std::move(sequences));
