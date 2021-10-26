@@ -104,6 +104,10 @@ void define_Kmer(py::module &m) {
         .def(py::self != py::self)
         .def(py::self < py::self)
         .def("__getitem__", [] (const Kmer& self, int index) {
+            if(index < 0) {
+                index = Kmer::k + index;
+            }
+
             if(index >= Kmer::k || index < 0) {
                 throw std::out_of_range("Index is out of range");
             }

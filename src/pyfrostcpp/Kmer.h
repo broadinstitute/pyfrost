@@ -80,11 +80,11 @@ public:
     Kmerizer(Kmerizer&& o) = default;
 
     KmerIterator begin() const {
-        return KmerIterator(str.c_str());
+        return {str.c_str()};
     }
 
     KmerIterator end() const {
-        return KmerIterator();
+        return {};
     }
 
 private:
