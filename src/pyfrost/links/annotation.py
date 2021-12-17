@@ -182,7 +182,7 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
                 # TODO: distance limit configurable
                 logger.debug("search path...")
                 logger.debug("Read 1 mapped path: %s", mapping_result.path)
-                path = list(link_supported_path_from(g, first_pass_db, mapping_result.path, link_color=db.color,
+                path = list(link_supported_path_from(g, first_pass_db, mapping_result.path,
                                                      distance_limit=1500, stop_unitig=read2_start_unitig))
 
                 if path and path[-1] == read2_start_unitig:

@@ -269,10 +269,10 @@ class NavigationEngine:
     This class implements all the logic to traverse a graph with support from links
     """
 
-    def __init__(self, g: BifrostDiGraph, linkdb: LinkDB, link_color: int = None):
+    def __init__(self, g: BifrostDiGraph, linkdb: LinkDB):
         self.g: BifrostDiGraph = g
         self.linkdb: LinkDB = linkdb
-        self.link_color: int = link_color
+        self.link_color: Optional[int] = linkdb.color
 
         self.picked_up_links = LinkManager()
 
@@ -319,7 +319,8 @@ class NavigationEngine:
                 if choice not in neighbors_dict:
                     raise PyfrostLinkMismatchError(
                         f"Mismatched graph and links! Current node: {curr_node!r}\nNeighbors:"
-                        f" {neighbors_dict}\nLink choice: {choice}\nPicked up links: {self.picked_up_links}"
+                        f" {neighbors_dict}\nLink choice: {choice}\nPicked up links:"
+                        f" {self.picked_up_links.picked_up_links}"
                     )
 
                 neighbor = neighbors_dict[choice]
@@ -394,7 +395,6 @@ class NavigationEngine:
                 choice = source[source_ix][-1]
 
                 if choice not in neighbors_dict:
-                    breakpoint()
                     raise PyfrostInvalidPathError(
                         f"Given source path is not a valid path through the graph!\n"
                         f"Source path: {source}\n"
@@ -433,12 +433,11 @@ class NavigationEngine:
 
 
 def link_supported_path_from(g: BifrostDiGraph, linkdb: LinkDB, source: Union[Node, Sequence[Node]],
-                             link_color: int = None, distance_limit: int = None,
-                             stop_unitig: Union[Kmer, set[Kmer]] = None,
+                             distance_limit: int = None, stop_unitig: Union[Kmer, set[Kmer]] = None,
                              with_dist: bool = False) -> Iterable[Union[Kmer, tuple[Kmer, int]]]:
     """
     Shortcut for building a link supported path with default navigation settings.
     """
 
-    engine = NavigationEngine(g, linkdb, link_color)
+    engine = NavigationEngine(g, linkdb)
     yield from engine.traverse(source, distance_limit, stop_unitig, with_dist)
