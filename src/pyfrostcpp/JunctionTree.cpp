@@ -4,12 +4,12 @@
 
 namespace pyfrost {
 
-JunctionTreeNode::JunctionTreeNode() : parent_edge(0), parent(nullptr), count(1)
+JunctionTreeNode::JunctionTreeNode() : parent(nullptr), count(1), parent_edge(0)
 {
 }
 
 JunctionTreeNode::JunctionTreeNode(char _parent_edge, JunctionTreeNode::parent_ptr_t _parent)
-    : parent_edge(_parent_edge), parent(_parent), count(0)
+    : parent(_parent), count(0), parent_edge(_parent_edge)
 {
 }
 
@@ -49,7 +49,7 @@ void JunctionTreeNode::increment()
     ++count;
 }
 
-size_t JunctionTreeNode::getCount() const
+uint16_t JunctionTreeNode::getCount() const
 {
     return count;
 }
@@ -101,7 +101,7 @@ string JunctionTreeNode::getJunctionChoices() {
     return string(output.begin(), output.end());
 }
 
-vector<size_t> JunctionTreeNode::getCoverages() {
+vector<uint16_t> JunctionTreeNode::getCoverages() {
     deque<size_t> output;
     JunctionTreeNode* curr = this;
 
@@ -127,8 +127,15 @@ void define_JunctionTreeNode(py::module& m) {
             return self.getChildren().size();
         })
         .def("__iter__", [] (JunctionTreeNode& self) {
-            return py::make_key_iterator(
-                self.getChildren().begin(), self.getChildren().end());
+            return py::make_iterator(self.keys_begin(), self.keys_end());
+        }, py::keep_alive<0, 1>())
+
+        .def("keys", [] (JunctionTreeNode& self) {
+            return py::make_iterator(self.keys_begin(), self.keys_end());
+        }, py::keep_alive<0, 1>())
+
+        .def("values", [] (JunctionTreeNode& self) {
+            return py::make_iterator<py::return_value_policy::reference>(self.values_begin(), self.values_end());
         }, py::keep_alive<0, 1>())
 
         .def("__repr__", [] (JunctionTreeNode& self) {
@@ -170,7 +177,7 @@ void define_JunctionTreeNode(py::module& m) {
             return py::bytes(self.getJunctionChoices());
         })
         .def("coverages", [] (JunctionTreeNode& self) {
-            return as_pyarray<vector<size_t>>(move(self.getCoverages()));
+            return as_pyarray<vector<uint16_t>>(move(self.getCoverages()));
         })
 
         .def("prune", &JunctionTreeNode::prune)
