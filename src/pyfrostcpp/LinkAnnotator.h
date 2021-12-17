@@ -500,29 +500,23 @@ void addLinksFromFasta(LinkAnnotator<T>& annotator, vector<string> const& filepa
 
     thread link_creator_thread([&] () {
         while(true) {
-            cerr << "link_creator_thread :: waiting for sequences..." << endl;
             unique_lock<mutex> guard(queue_lock);
             sequences_ready.wait(guard, [&] () { return !seq_blocks.empty() || finished_reading; });
 
             if(seq_blocks.empty() && finished_reading) {
-                cerr << "link_creator_thread :: finished.\n" << std::flush;
                 return;
             }
 
-            cerr << "link_creator_thread :: moving block of sequences from the queue." << endl;
             unique_ptr<vector<string>> sequences = std::move(seq_blocks.front());
             seq_blocks.pop();
             guard.unlock();
 
-            cerr << "link_creator_thread :: creating links..." << endl;
             for(string const& seq : *sequences) {
                 annotator.addLinksFromSequence(seq);
                 if(both_strands) {
                     annotator.addLinksFromSequence(reverse_complement(seq));
                 }
             }
-
-            cerr << "link_creator_thread :: processed block of " << sequences->size() << " sequences.\n" << flush;
         }
     });
 
@@ -541,9 +535,7 @@ void addLinksFromFasta(LinkAnnotator<T>& annotator, vector<string> const& filepa
             if(num_read >= batch_size) {
                 // When enough data read, push sequences on the queue. This way we don't have to lock the queue that
                 // often.
-                cerr << "reader_thread :: waiting for lock..." << endl;
                 unique_lock<mutex> guard(queue_lock);
-                cerr << "reader_thread :: queuing block of " << sequences->size() << " sequences." << endl;
                 seq_blocks.emplace(std::move(sequences));
                 guard.unlock();
 
@@ -556,9 +548,7 @@ void addLinksFromFasta(LinkAnnotator<T>& annotator, vector<string> const& filepa
 
         // Push remaining sequences on the queue
         if(!sequences->empty()) {
-            cerr << "reader_thread :: waiting for lock..." << endl;
             unique_lock<mutex> guard(queue_lock);
-            cerr << "reader_thread :: read block of " << sequences->size() << " sequences.\n" << flush;
             seq_blocks.emplace(std::move(sequences));
             guard.unlock();
 
