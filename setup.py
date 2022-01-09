@@ -38,6 +38,7 @@ class CMakeBuild(build_ext):
     def build_extension(self, ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
         cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
+                      '-DCMAKE_INSTALL_PREFIX=' + sys.prefix,
                       '-DPYTHON_EXECUTABLE=' + sys.executable]
 
         cfg = 'Debug' if self.debug else 'Release'
@@ -71,6 +72,8 @@ class CMakeBuild(build_ext):
         else:
             subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
 
+        subprocess.check_call(['make', 'install'], cwd=self.build_temp)
+
 
 setup(
     name='pyfrost',
@@ -82,12 +85,15 @@ setup(
     long_description='',
     packages=find_packages('src'),
     package_dir={'': 'src'},
+    data_files=[
+        ('bin', [sys.prefix + '/bin/Bifrost'])
+    ],
     include_package_data=True,
 
     setup_requires=['cmake>=3.10'],
     install_requires=['networkx>=2.4'],
 
-    ext_modules=[CMakeExtension('pyfrostcpp', target=['pyfrostcpp'])],
+    ext_modules=[CMakeExtension('pyfrostcpp', target=['pyfrostcpp', 'Bifrost'])],
     cmdclass=dict(build_ext=CMakeBuild, **versioneer.get_cmdclass()),
     zip_safe=False,
 )

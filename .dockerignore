@@ -1,0 +1,10 @@
+cmake-*
+dist/
+build/
+*.egg-info
+var/
+test.log
+test_log
+test.links
+.git
+__pycache__
