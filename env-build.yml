@@ -2,6 +2,7 @@ name: base
 channels:
   - conda-forge
 dependencies:
+  - python=3.9
   - cxx-compiler
   - cmake
   - pybind11

@@ -72,7 +72,7 @@ class CMakeBuild(build_ext):
         else:
             subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
 
-        subprocess.check_call(['make', 'install'], cwd=self.build_temp)
+        subprocess.check_call(['make', 'install', *ext.target], cwd=self.build_temp)
 
 
 setup(
