@@ -3,6 +3,7 @@ import re
 import sys
 import platform
 import subprocess
+from pathlib import Path
 from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 from distutils.version import LooseVersion
@@ -74,6 +75,9 @@ class CMakeBuild(build_ext):
 
         subprocess.check_call(['make', 'install', *ext.target], cwd=self.build_temp)
 
+BIFROST_PATH = Path(sys.prefix) / "bin" / "Bifrost"
+SETUP_DIR = Path(__file__).parent
+BIFROST_REL_PATH = os.path.relpath(BIFROST_PATH, SETUP_DIR)
 
 setup(
     name='pyfrost',
@@ -86,7 +90,7 @@ setup(
     packages=find_packages('src'),
     package_dir={'': 'src'},
     data_files=[
-        ('bin', [sys.prefix + '/bin/Bifrost'])
+        ('bin', [BIFROST_REL_PATH])
     ],
     include_package_data=True,
 
