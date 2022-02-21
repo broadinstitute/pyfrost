@@ -15,3 +15,10 @@ test.log
 test_log
 var/
 .eggs/
+.ipynb_checkpoints
+docs/_data/refseq/
+docs/_data/human_readable/
+docs/_data/ref_list.txt
+docs/_data/*.gfa
+docs/_data/*.bfg_colors
+docs/_build/
