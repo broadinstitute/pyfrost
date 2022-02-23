@@ -64,7 +64,7 @@ def follow_link(g: BifrostDiGraph, start_kmer: Kmer, link: jt.Link) -> Iterable[
             neighbors = {
                 str(neighbor)[-1]: neighbor for neighbor in g.neighbors(curr_node)
             }
-            choice = link.choices[pos]
+            choice = chr(link.choices[pos])
             if choice not in neighbors:
                 raise PyfrostLinkMismatchError(
                     f"Link junction choice is not a valid neighbor in the graph! Are links and graph mismatched?\n"
@@ -112,13 +112,12 @@ def link_junction_edges(g: BifrostDiGraph, start_kmer: Kmer, link: jt.Link) -> I
     curr_node = start_unitig['head']
     pos = 0
     while pos < len(link.choices):
-        print("Current node:", curr_node, file=sys.stderr)
         # Find neighbor
         if g.out_degree[curr_node] > 1:
             neighbors = {
                 str(neighbor)[-1]: neighbor for neighbor in g.neighbors(curr_node)
             }
-            choice = link.choices[pos]
+            choice = chr(link.choices[pos])
             if choice not in neighbors:
                 raise PyfrostLinkMismatchError(
                     f"Link junction choice is not a valid neighbor in the graph! Are links and graph mismatched?\n"
