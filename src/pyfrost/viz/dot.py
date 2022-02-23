@@ -39,13 +39,13 @@ def to_pydot(dbg: BifrostDiGraph, full_sequence: bool=False) -> pydot.Dot:
         pg.add_node(pn)
 
     for n1, n2 in dbg.edges:
-        pe = pydot.Edge(str(n1), str(n2))
+        pe = pydot.Edge(str(n1), str(n2), label=n2[-1])
         pg.add_edge(pe)
 
     return pg
 
 
-def display_graph(dbg: BifrostDiGraph, *args, **kwargs) -> Image:
+def display_graph(dbg: BifrostDiGraph | pydot.Dot, *args, **kwargs) -> Image:
     """
     Display the graph
     :param dbg:
@@ -55,5 +55,5 @@ def display_graph(dbg: BifrostDiGraph, *args, **kwargs) -> Image:
     """
     from IPython.display import Image
 
-    pydot_graph = to_pydot(dbg, *args, **kwargs)
+    pydot_graph = dbg if isinstance(dbg, pydot.Dot) else to_pydot(dbg, *args, **kwargs)
     return Image(pydot_graph.create_png(prog='dot'))
