@@ -22,3 +22,5 @@ docs/_data/ref_list.txt
 docs/_data/*.gfa
 docs/_data/*.bfg_colors
 docs/_build/
+docs/_data/*.links
+docs/_data/mapping_results.tsv
