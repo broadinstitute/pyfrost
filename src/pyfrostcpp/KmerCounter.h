@@ -26,17 +26,6 @@
 #include <robin_hood.h>
 #include <File_Parser.hpp>
 
-namespace pybind11 { namespace detail {
-
-template<typename K, typename V>
-struct type_caster<robin_hood::pair<K, V>> : tuple_caster<robin_hood::pair, K, V> { };
-
-template<typename K, typename V, typename H, typename G>
-struct type_caster<robin_hood::unordered_map<K, V, H, G>>
-    : map_caster<robin_hood::unordered_map<K, V, H, G>, K, V> { };
-
-}}
-
 namespace pyfrost {
 
 using std::pair;
@@ -47,14 +36,10 @@ class KmerCounter;
 typedef uint16_t kmercount_t;
 using KmerCountMap = robin_hood::unordered_map<Kmer, kmercount_t>;
 
-
-
 class KmerCounterIterator {
 public:
     using iteratory_category = std::input_iterator_tag;
-    // Pair instead of KmerCountMap::iterator::value_type because we want implicit conversion to python tuples and
-    // support of pybind11::make_key_iterator etc.
-    using value_type = std::pair<Kmer, kmercount_t>;
+    using value_type = pair<Kmer, kmercount_t>;
     using difference_type = std::ptrdiff_t;
     using reference = value_type&;
     using pointer = value_type*;
@@ -70,8 +55,6 @@ public:
 
                 if(curr_kmer == kmer_end) {
                     ++curr_table;
-                } else {
-                    curr_value = make_pair(curr_kmer->first, curr_kmer->second);
                 }
             } while(curr_kmer == kmer_end && curr_table != table_end);
         }
@@ -95,13 +78,9 @@ public:
 
                     if(curr_kmer == kmer_end) {
                         ++curr_table;
-                    } else {
-                        curr_value = make_pair(curr_kmer->first, curr_kmer->second);
                     }
                 } while(curr_kmer == kmer_end && curr_table != table_end);
             }
-        } else {
-            curr_value = make_pair(curr_kmer->first, curr_kmer->second);
         }
 
         return *this;
@@ -114,8 +93,16 @@ public:
         return tmp;
     }
 
-    reference operator*() {
-        return curr_value;
+    value_type operator*() {
+        if(curr_table == table_end) {
+            Kmer tmp;
+            tmp.set_empty();
+
+            return {tmp, 0u};
+        }
+
+        // Make std::pair to ensure automatic conversion to a py::tuple
+        return make_pair(curr_kmer->first, curr_kmer->second);
     }
 
     robin_hood::pair<const Kmer, kmercount_t>* operator->() {
@@ -143,8 +130,6 @@ private:
     vector<KmerCountMap>::iterator table_end;
     KmerCountMap::iterator curr_kmer;
     KmerCountMap::iterator kmer_end;
-
-    value_type curr_value;
 
 };
 
