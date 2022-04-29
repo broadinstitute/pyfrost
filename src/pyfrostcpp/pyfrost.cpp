@@ -199,7 +199,8 @@ PYBIND11_MODULE(pyfrostcpp, m) {
     pyfrost::define_AdjacencyOuterDict(m);
     pyfrost::define_JunctionTreeNode(m);
     pyfrost::define_LinkDB(m);
-    pyfrost::define_MemLinkDB(m);
+    pyfrost::define_MemLinkDB<pyfrost::JunctionTreeNode>(m, "MemLinkDB");
+    pyfrost::define_MemLinkDB<pyfrost::JunctionTreeNodeWithCov>(m, "MemLinkDBWithCov");
     pyfrost::define_LinkAnnotator(m);
     pyfrost::define_MappingResult(m);
 

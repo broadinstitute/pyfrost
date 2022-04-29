@@ -7,6 +7,8 @@
 #include "Kmer.h"
 #include "Serialize.h"
 
+#include <cereal/types/base_class.hpp>
+
 namespace pyfrost {
 
 
@@ -55,7 +57,7 @@ public:
     parent_ptr_t getParent();
     char getParentEdge() const;
     children_t& getChildren();
-    JunctionTreeNode& addEdge(char edge);
+    virtual JunctionTreeNode& addEdge(char edge);
 
     keys_iterator keys_begin() {
         return {children.begin()};
@@ -73,17 +75,17 @@ public:
         return {children.end()};
     }
 
-    bool isLeaf() const;
+    virtual bool isLeaf() const;
 
     void prune(size_t threshold);
-    uint16_t getCount() const;
+    virtual uint16_t getCount() const;
 
     string getJunctionChoices();
     vector<uint16_t> getCoverages();
 
     template<typename Archive>
     void serialize(Archive& ar) {
-        ar(parent_edge, count, children);
+        ar(parent_edge, children);
     }
 
     // To be called after loading from a file.
@@ -94,13 +96,33 @@ public:
         }
     }
 
+protected:
+    parent_ptr_t parent;
+    children_t children;
+    char parent_edge;
+};
+
+
+class JunctionTreeNodeWithCov : public JunctionTreeNode {
+public:
+    JunctionTreeNodeWithCov() : count(1), JunctionTreeNode() { }
+    JunctionTreeNodeWithCov(char _parent_edge, parent_ptr_t parent) :
+        count(0), JunctionTreeNode(_parent_edge, parent) { }
+    JunctionTreeNodeWithCov(JunctionTreeNodeWithCov&& o) = default;
+
+    bool isLeaf() const override;
+    JunctionTreeNode& addEdge(char edge) override;
+    uint16_t getCount() const override;
+
+    template<typename Archive>
+    void serialize(Archive& ar) {
+        ar(cereal::base_class<JunctionTreeNode>(this), count);
+    }
+
 private:
     void increment();
 
-    parent_ptr_t parent;
-    children_t children;
     uint16_t count;
-    char parent_edge;
 };
 
 void define_JunctionTreeNode(py::module& m);

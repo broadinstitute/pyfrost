@@ -4,12 +4,12 @@
 
 namespace pyfrost {
 
-JunctionTreeNode::JunctionTreeNode() : parent(nullptr), count(1), parent_edge(0)
+JunctionTreeNode::JunctionTreeNode() : parent(nullptr), parent_edge(0)
 {
 }
 
 JunctionTreeNode::JunctionTreeNode(char _parent_edge, JunctionTreeNode::parent_ptr_t _parent)
-    : parent(_parent), count(0), parent_edge(_parent_edge)
+    : parent(_parent), parent_edge(_parent_edge)
 {
 }
 
@@ -39,33 +39,18 @@ JunctionTreeNode& JunctionTreeNode::addEdge(char edge)
         children.emplace(edge, std::make_unique<JunctionTreeNode>(edge, this));
     }
 
-    children[edge]->increment();
-
     return *children[edge];
 }
 
-void JunctionTreeNode::increment()
-{
-    ++count;
-}
 
 uint16_t JunctionTreeNode::getCount() const
 {
-    return count;
+    return 1;
 }
 
 bool JunctionTreeNode::isLeaf() const
 {
-    if(children.empty()) {
-        return true;
-    }
-
-    size_t child_sum = 0;
-    for(auto const& it : children) {
-        child_sum += it.second->getCount();
-    }
-
-    return child_sum < count;
+    return children.empty();
 }
 
 void JunctionTreeNode::prune(size_t threshold) {
@@ -98,7 +83,7 @@ string JunctionTreeNode::getJunctionChoices() {
         }
     }
 
-    return string(output.begin(), output.end());
+    return {output.begin(), output.end()};
 }
 
 vector<uint16_t> JunctionTreeNode::getCoverages() {
@@ -106,7 +91,7 @@ vector<uint16_t> JunctionTreeNode::getCoverages() {
     JunctionTreeNode* curr = this;
 
     while(curr->parent_edge) {
-        output.push_front(curr->count);
+        output.push_front(curr->getCount());
         if(curr->parent != nullptr) {
             curr = curr->parent;
         } else {
@@ -116,6 +101,48 @@ vector<uint16_t> JunctionTreeNode::getCoverages() {
 
     return {output.begin(), output.end()};
 }
+
+// JunctionTreeNodeWithCov
+uint16_t JunctionTreeNodeWithCov::getCount() const
+{
+    return count;
+}
+
+bool JunctionTreeNodeWithCov::isLeaf() const
+{
+    if(children.empty()) {
+        return true;
+    }
+
+    size_t child_sum = 0;
+    for(auto const& it : children) {
+        child_sum += it.second->getCount();
+    }
+
+    return child_sum < count;
+}
+
+void JunctionTreeNodeWithCov::increment()
+{
+    ++count;
+}
+
+JunctionTreeNode& JunctionTreeNodeWithCov::addEdge(char edge)
+{
+    if(!(edge == 'A' || edge == 'C' || edge =='G' || edge == 'T')) {
+        throw std::runtime_error("Invalid edge, must be one of A, C, T or G");
+    }
+
+    auto it = children.find(edge);
+    if(it == getChildren().end()) {
+        children.emplace(edge, std::make_unique<JunctionTreeNodeWithCov>(edge, this));
+    }
+
+    dynamic_cast<JunctionTreeNodeWithCov*>(children[edge].get())->increment();
+
+    return *children[edge];
+}
+
 
 
 void define_JunctionTreeNode(py::module& m) {
@@ -201,6 +228,12 @@ void define_JunctionTreeNode(py::module& m) {
 
     auto Mapping = py::module::import("collections.abc").attr("Mapping");
     py_JunctionTreeNode.attr("__bases__") = py::make_tuple(Mapping).attr("__add__")(py_JunctionTreeNode.attr("__bases__"));
+
+    auto py_JunctionTreeNodeWithCov = py::class_<JunctionTreeNodeWithCov, JunctionTreeNode>(
+        m, "JunctionTreeNodeWithCov")
+        .def("is_leaf", &JunctionTreeNodeWithCov::isLeaf)
+        .def_property_readonly("count", &JunctionTreeNodeWithCov::getCount);
+
 }
 
 }

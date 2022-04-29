@@ -129,7 +129,6 @@ def test_link_paired_read_on_repeat(mccortex):
             if node.is_leaf():
                 choices = node.junction_choices()
                 all_choices.add(choices)
-        print(kmer, all_choices, file=sys.stderr)
         assert all_choices == known_links.get(kmer, set())
 
 
