@@ -74,10 +74,27 @@ size_t kmerPosOriented(UnitigMap<U, G> const& unitig) {
 template<typename T>
 class LinkAnnotator {
 public:
-    LinkAnnotator(T* _graph, LinkDB* _db) : graph(_graph), db(_db) { }
+    LinkAnnotator(T* _graph, LinkDB* _db) : graph(_graph), db(_db), max_link_length(0) { }
     LinkAnnotator(LinkAnnotator const& o) = default;
     LinkAnnotator(LinkAnnotator&& o) noexcept = default;
     virtual ~LinkAnnotator() = default;
+
+    size_t getMaxLinkLength() const {
+        return max_link_length;
+    }
+
+    /**
+     * Limit the length of links (in number of k-mers).
+     *
+     * When the distance from the current position to a node to be annotated is higher than the given number of
+     * k-mers, that node will be removed from the "nodes to annotate" list, and thus will not get any additional
+     * junction choices.
+     *
+     * @param max_length Max distance in k-mers
+     */
+    void setMaxLinkLength(size_t max_length) {
+        max_link_length = max_length;
+    }
 
     /**
      * Thread the given sequence through the graph and annotate specific nodes with the junctions taken.
@@ -127,7 +144,7 @@ protected:
      */
     virtual bool nodeNeedsAnnotation(typename T::unitigmap_t const& unitig);
 
-    virtual void resetNodesToAnnotate() {
+    virtual void reset() {
         nodes_to_annotate.clear();
     }
 
@@ -161,7 +178,8 @@ protected:
 
     T* graph;
     LinkDB* db;
-    std::vector<JunctionTreeNode*> nodes_to_annotate;
+    size_t max_link_length;
+    std::deque<std::pair<size_t, JunctionTreeNode*>> nodes_to_annotate;
 };
 
 template<typename T>
@@ -193,7 +211,7 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
     }
 
     if(!keep_nodes) {
-        resetNodesToAnnotate();
+        reset();
     }
 
     bool first_unitig_found = false;
@@ -245,8 +263,21 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
             mapping.unitig_visits[unitig_kmer] = 1;
         }
 
+        if(max_link_length > 0 && !nodes_to_annotate.empty()) {
+            // Returns an iterator to the first node that was created < max_link_length.
+            auto to_remove_it = std::find_if(nodes_to_annotate.begin(), nodes_to_annotate.end(),
+                                             [&] (pair<size_t, JunctionTreeNode*>& p) {
+                return (pos - p.first) < max_link_length;
+            });
+
+            // So remove everything up to the above found element (erase is half-open, so the found element itself
+            // does not get erased).
+            nodes_to_annotate.erase(nodes_to_annotate.begin(), to_remove_it);
+        }
+
         if(nodeNeedsAnnotation(unitig)) {
-            nodes_to_annotate.push_back(&db->createOrGetTree(unitig.getMappedTail()));
+            nodes_to_annotate.push_back(
+                std::make_pair(pos, &db->createOrGetTree(unitig.getMappedTail())));
         }
 
         // Move to the end of the unitig, and by definition we will not encounter any branch points.
@@ -305,11 +336,10 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
             for(auto& succ : successors) {
                 if(succ.getMappedHead() == succ_kmer) {
                     // Add edge choice to each tree
-                    std::transform(
-                        nodes_to_annotate.begin(), nodes_to_annotate.end(), nodes_to_annotate.begin(),
-                        [edge] (JunctionTreeNode* node) -> JunctionTreeNode* {
-                            return &node->addEdge(edge);
-                        });
+                    std::for_each(nodes_to_annotate.begin(), nodes_to_annotate.end(),
+                                  [edge] (pair<size_t, JunctionTreeNode*>& node) {
+                        node.second = &node.second->addEdge(edge);
+                    });
 
                     found_succ = true;
                     break;
@@ -323,8 +353,8 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
         }
     }
 
-    if(!nodes_to_annotate.empty()) {
-        mapping.junctions = nodes_to_annotate[0]->getJunctionChoices();
+    if(!nodes_to_annotate.empty() && max_link_length == 0) {
+        mapping.junctions = nodes_to_annotate[0].second->getJunctionChoices();
     }
 
     return mapping;
@@ -333,7 +363,7 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
 template<typename T>
 void LinkAnnotator<T>::addLinksFromPath(vector<Kmer> const& path) {
     if(graph == nullptr || db == nullptr) {
-        throw std::runtime_error("Graph or LinkDB pointer expired!");
+        throw std::runtime_error("Graph or LinkDB not set!");
     }
 
     size_t i = 0;
@@ -347,18 +377,17 @@ void LinkAnnotator<T>::addLinksFromPath(vector<Kmer> const& path) {
         // as to be annotated by `addLinksFromSequence`.
         if(i > 0 && i < path.size() - 1) {
             if(nodeNeedsAnnotation(unitig)) {
-                nodes_to_annotate.push_back(&db->createOrGetTree(unitig.getMappedTail()));
+                nodes_to_annotate.push_back(make_pair(0, &db->createOrGetTree(unitig.getMappedTail())));
             }
         }
 
         // Follow path, and see which edge is taken at junctions
         if(i < path.size() - 1 && numSuccessors(unitig) > 1) {
             char edge = path[i+1].getChar(Kmer::k-1);
-            std::transform(
-                nodes_to_annotate.begin(), nodes_to_annotate.end(), nodes_to_annotate.begin(),
-                [edge] (JunctionTreeNode* node) -> JunctionTreeNode* {
-                    return &node->addEdge(edge);
-                });
+            std::for_each(nodes_to_annotate.begin(), nodes_to_annotate.end(),
+            [edge] (pair<size_t, JunctionTreeNode*>& node) {
+                   node.second = &node.second->addEdge(edge);
+            });
         }
 
         ++i;
@@ -453,37 +482,6 @@ protected:
 
 private:
     size_t color;
-};
-
-
-/**
- * Special link annotator for reference genomes.
- *
- * This class *always* annotates the node in the graph containing the first k-mer of the sequence, such that it is
- * always possible to reconstruct the genome from it's starting node.
- *
- * @tparam T
- */
-template<typename T>
-class RefLinkAnnotator : public ColorAssociatedAnnotator<T> {
-public:
-    RefLinkAnnotator(T* _graph, LinkDB* _db) : ColorAssociatedAnnotator<T>(_graph, _db) { }
-    RefLinkAnnotator(RefLinkAnnotator const& o) = default;
-    RefLinkAnnotator(RefLinkAnnotator&& o) noexcept = default;
-    virtual ~RefLinkAnnotator() = default;
-
-protected:
-    bool nodeNeedsAnnotation(typename T::unitigmap_t const& unitig) override {
-        if(!first_node_annotated) {
-            first_node_annotated = true;
-            return true;
-        } else {
-            return ColorAssociatedAnnotator<T>::nodeNeedsAnnotation(unitig);
-        }
-    }
-
-private:
-    bool first_node_annotated = false;
 };
 
 
