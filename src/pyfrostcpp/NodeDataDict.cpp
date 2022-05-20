@@ -23,6 +23,7 @@ void define_NodeDataDict(py::module& m) {
         })
         .def("rep", py::overload_cast<>(&NodeDataDict::unitigRepresentative, py::const_),
             "Return the head k-mer of this unitig in forward strand")
+        .def("kmer_at", &NodeDataDict::kmerAt)
         .def("full_node", [](NodeDataDict const& self) {
             return NodeDataDict(self.mappingToFullUnitig());
         });
@@ -160,6 +161,10 @@ Kmer NodeDataDict::unitigTail() const {
 
 Kmer NodeDataDict::unitigRepresentative() const {
     return unitig.getUnitigHead();
+}
+
+Kmer NodeDataDict::kmerAt(size_t pos) const {
+    return unitig.getMappedKmer(pos);
 }
 
 UnitigDataKeyIterator NodeDataDict::begin() const {

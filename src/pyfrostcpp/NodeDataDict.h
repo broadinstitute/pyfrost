@@ -55,6 +55,7 @@ public:
     Kmer unitigHead() const;
     Kmer unitigTail() const;
     Kmer unitigRepresentative() const;
+    Kmer kmerAt(size_t pos) const;
 
     inline PyfrostColoredUMap mappingToFullUnitig() const {
         return unitig.mappingToFullUnitig();
