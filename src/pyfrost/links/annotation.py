@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Union, Type, NamedTuple, TextIO
 
 import numpy
 import pyfrostcpp
-from pyfrostcpp import LinkAnnotator, ColorAssociatedAnnotator, RefLinkAnnotator, MappingResult, Strand
+from pyfrostcpp import LinkAnnotator, ColorAssociatedAnnotator, MappingResult, Strand
 from pyfrost.links.db import LinkDB, MemLinkDB
 from pyfrost.links.nav import link_supported_path_from
 from pyfrost.io import read_fastq, read_paired_fastq, open_compressed
@@ -28,9 +28,9 @@ from pyfrost.io import read_fastq, read_paired_fastq, open_compressed
 if TYPE_CHECKING:
     from pyfrost import BifrostDiGraph
 
-__all__ = ['add_links_from_single_sequence', 'add_links_from_ref_genome', 'add_links_from_fasta',
+__all__ = ['add_links_from_single_sequence', 'add_links_from_fasta',
            'add_links_from_fastq', 'add_links_from_paired_read',
-           'LinkAnnotator', 'ColorAssociatedAnnotator', 'RefLinkAnnotator', 'MappingResult']
+           'LinkAnnotator', 'ColorAssociatedAnnotator', 'MappingResult']
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,9 @@ class PairedReadMappingResult(NamedTuple):
     reverse: tuple[MappingResult, MappingResult, PairedAnnotationResult]
 
 
-def add_links_from_single_sequence(graph: BifrostDiGraph, db: LinkDB, seq: str) -> MappingResult:
+def add_links_from_single_sequence(graph: BifrostDiGraph, db: LinkDB, seq: str,
+                                   annotator_cls: Type[LinkAnnotator] = LinkAnnotator,
+                                   max_link_length: int = None) -> MappingResult:
     """
     Thread `seq` through the ccDBG (`graph`), and annotate which branches were taken at junctions in `linkdb`.
 
@@ -69,38 +71,23 @@ def add_links_from_single_sequence(graph: BifrostDiGraph, db: LinkDB, seq: str) 
         The link database object
     seq : str
         The sequence to thread to the graph
+    annotator_cls : LinkAnnotator
+        Which annotator class to use, options are `LinkAnnotator` or `ColorAssociatedAnnotator`, which only adds links
+        for a specific color in the graph.
+    max_link_length : int
+        Stop adding junction choices to nodes to be annotated after a certain distance in k-mers.
 
     Returns
     -------
     MappingResult
         An object describing how well the given sequence mapped to the graph.
     """
-    annotator = LinkAnnotator(graph._ccdbg, db)
+    annotator = annotator_cls(graph._ccdbg, db)
+
+    if max_link_length:
+        annotator.max_link_length = max_link_length
+
     return annotator.add_links_from_sequence(seq)
-
-
-def add_links_from_ref_genome(graph: BifrostDiGraph, db: LinkDB, genome: str) -> MappingResult:
-    """
-    Thread `genome` through the ccDBG (`graph`), and annotate which branches were taken at junctions in `linkdb`.
-    This function differs from `add_links_from_single_sequence`, in that it always annotates the node with the first
-    k-mer of this sequence, such that it is always possible to reconstruct the original genome.
-
-    Parameters
-    ----------
-    graph : BifrostDiGraph
-        The ccDBG
-    db : LinkDB
-        The link database object
-    genome : str
-        The sequence to thread to the graph
-
-    Returns
-    -------
-    MappingResult
-        An object describing how well the genome mapped to the graph.
-    """
-    annotator = RefLinkAnnotator(graph._ccdbg, db)
-    return annotator.add_links_from_sequence(genome)
 
 
 def add_links_from_paired_read(g: BifrostDiGraph, db: LinkDB, read1: str, read2: str,
@@ -211,7 +198,7 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
 
 def add_links_from_fasta(graph: BifrostDiGraph, linkdb: LinkDB, files: Union[str, Path, list[str], list[Path]],
                          annotator_cls: Type[LinkAnnotator] = LinkAnnotator, batch_size: int = 1000,
-                         both_strands: bool = False):
+                         both_strands: bool = False, max_link_length: int = None):
     """
     Thread sequences read from the given file(s) through the graph, and annotate which branches were taken as links
     in `linkdb`. Supports compressed FASTA files too.
@@ -228,11 +215,13 @@ def add_links_from_fasta(graph: BifrostDiGraph, linkdb: LinkDB, files: Union[str
         Associate links generated from this FASTA file with a specific color. Optional.
     annotator_cls : Type[LinkAnnotator]
         The class to use for creating links. Defaults to `LinkAnnotator`, but you could for example specify
-        `RefLinkAnnotator` here.
+        `ColorAssociatedAnnotator` here, to only add links for a certain color.
     batch_size : int
         Number of sequences to read per batch. Defaults to 1000.
     both_strands : bool
         Whether to add links from both the forward and reverse orientations of each sequence in the FASTA file.
+    max_link_length : int
+        Stop adding junction choices to nodes to be annotated after a certain distance in k-mers.
     """
 
     if not isinstance(files, list):
@@ -241,6 +230,10 @@ def add_links_from_fasta(graph: BifrostDiGraph, linkdb: LinkDB, files: Union[str
     files = [p if isinstance(p, str) else str(p) for p in files]
 
     annotator = annotator_cls(graph._ccdbg, linkdb)
+
+    if max_link_length:
+        annotator.max_link_length = max_link_length
+
     return pyfrostcpp.add_links_from_fasta(annotator, files, batch_size, both_strands)
 
 
