@@ -52,8 +52,12 @@ void define_UnitigColors(py::module &m) {
         .def("__getitem__", &UnitigColorsProxy::getColorsAtPos)
         .def("__contains__", &UnitigColorsProxy::contains)
         .def("__len__", &UnitigColorsProxy::size)
-        .def("__iter__", [](UnitigColorsProxy const &self) {
+        .def("__iter__", [](UnitigColorsProxy const& self) {
             return py::make_iterator(self.begin(), self.end());
+        }, py::keep_alive<0, 1>())
+
+        .def("pos_color_iter", [] (UnitigColorsProxy& self) {
+            return py::make_iterator(self.posColorIterBegin(), self.posColorIterEnd());
         }, py::keep_alive<0, 1>())
 
         .def("add", &UnitigColorsProxy::add)

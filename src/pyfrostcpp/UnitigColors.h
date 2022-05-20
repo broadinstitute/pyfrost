@@ -86,6 +86,14 @@ public:
         return UnitigColorIterator(colorset->end());
     }
 
+    UnitigColors::const_iterator posColorIterBegin() const {
+        return colorset->begin(unitig);
+    }
+
+    UnitigColors::const_iterator posColorIterEnd() const {
+        return colorset->end();
+    }
+
     size_t size() const {
         return colorset->size(unitig);
     }
