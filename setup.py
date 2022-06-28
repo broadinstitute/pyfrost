@@ -14,7 +14,7 @@ import versioneer
 
 
 class CMakeExtension(Extension):
-    def __init__(self, name, sourcedir='', target: Union[List[str], str]=None):
+    def __init__(self, name, sourcedir='', target: Union[List[str], str] = None):
         Extension.__init__(self, name, sources=[])
         self.sourcedir = os.path.abspath(sourcedir)
         self.target = target
@@ -58,22 +58,25 @@ class CMakeBuild(build_ext):
         env = os.environ.copy()
         env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(
             env.get('CXXFLAGS', ''), self.distribution.get_version())
+
+        if 'COMPILATION_ARCH' in env:
+            cmake_args.append(f"-DCOMPILATION_ARCH={env['COMPILATION_ARCH']}")
+
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
 
         if ext.target:
             if isinstance(ext.target, list):
-                for target in ext.target:
-                    subprocess.check_call(['cmake', '--build', '.', '--target', target] + build_args,
-                                          cwd=self.build_temp)
+                subprocess.check_call(['cmake', '--build', '.', '--target', *ext.target] + build_args,
+                                      cwd=self.build_temp)
             else:
                 subprocess.check_call(['cmake', '--build', '.', '--target', ext.target] + build_args,
                                       cwd=self.build_temp)
         else:
             subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
 
-        subprocess.check_call(['make', 'install', *ext.target], cwd=self.build_temp)
+        subprocess.check_call(['cmake', '--install', '.'], cwd=self.build_temp)
 
 BIFROST_PATH = Path(sys.prefix) / "bin" / "Bifrost"
 SETUP_DIR = Path(__file__).parent
