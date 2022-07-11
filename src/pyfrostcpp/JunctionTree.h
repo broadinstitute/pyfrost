@@ -8,6 +8,7 @@
 #include "Serialize.h"
 
 #include <cereal/types/base_class.hpp>
+#include <cereal/archives/binary.hpp>
 
 namespace pyfrost {
 
@@ -128,5 +129,8 @@ private:
 void define_JunctionTreeNode(py::module& m);
 
 }
+
+CEREAL_REGISTER_TYPE(pyfrost::JunctionTreeNodeWithCov)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(pyfrost::JunctionTreeNode, pyfrost::JunctionTreeNodeWithCov)
 
 #endif //PYFROST_JUNCTIONTREE_H
