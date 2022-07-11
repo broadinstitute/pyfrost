@@ -21,14 +21,11 @@ void define_LinkAnnotator(py::module& m) {
 
 void define_MappingResult(py::module& m) {
     py::class_<MappingResult>(m, "MappingResult")
-        .def_readonly("path", &MappingResult::path)
+        .def_readonly("paths", &MappingResult::paths)
         .def("start_unitig", &MappingResult::start_unitig)
         .def("end_unitig", &MappingResult::end_unitig)
         .def_readonly("mapping_start", &MappingResult::mapping_start)
         .def_readonly("mapping_end", &MappingResult::mapping_end)
-        .def_property_readonly("junctions", [] (MappingResult& self) {
-            return py::bytes(self.junctions);
-        })
         .def_readonly("unitig_visits", &MappingResult::unitig_visits)
         .def("matching_kmers", [] (MappingResult& self) {
             // Make copy and return as NumPy array
@@ -42,8 +39,7 @@ void define_MappingResult(py::module& m) {
                     << self.end_unitig().toString() << '\t'
                     << self.matches.size() << '\t'
                     << self.mapping_start << '\t'
-                    << self.mapping_end << '\t'
-                    << (self.junctions.empty() ? "." : self.junctions);
+                    << self.mapping_end << '\t';
 
             size_t num_correct = 0;
             for(unsigned char match : self.matches) {

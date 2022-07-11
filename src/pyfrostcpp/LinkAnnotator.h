@@ -16,17 +16,14 @@ struct MappingResult {
     MappingResult(MappingResult const& o) = default;
     MappingResult(MappingResult&& o) = default;
 
-    /// Path through the graph the sequence took
-    vector<Kmer> path;
+    /// Path(s) through the graph the sequence took
+    vector<vector<Kmer>> paths;
 
     /// First position in the sequence that has a k-mer that maps to the graph
     size_t mapping_start;
 
     /// Last position in the sequence that has a k-mer that maps to the graph
     size_t mapping_end;
-
-    /// Junction choices from this link
-    string junctions;
 
     /// For each k-mer in the sequence, whether it was found in the graph or not
     std::vector<uint8_t> matches;
@@ -35,22 +32,23 @@ struct MappingResult {
     std::unordered_map<Kmer, size_t> unitig_visits;
 
     Kmer start_unitig() const {
-        if(path.empty()) {
+        if(paths.empty()) {
             Kmer empty;
             empty.set_empty();
             return empty;
         } else {
-            return path[0];
+            return paths[0][0];
         }
     }
 
     Kmer end_unitig() const {
-        if(path.empty()) {
+        if(paths.empty()) {
             Kmer empty;
             empty.set_empty();
             return empty;
         } else {
-            return path[path.size()-1];
+            size_t last_index = paths.size() - 1;
+            return paths[last_index][paths[last_index].size() - 1];
         }
     }
 };
@@ -221,6 +219,7 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
     vector<typename T::unitigmap_t> successors;
 
     KmerIterator kmer_iter(seq.c_str()), kmer_end;
+    vector<Kmer> curr_path;
     for(; kmer_iter != kmer_end; ++kmer_iter) {
         Kmer kmer;
         size_t pos;
@@ -229,7 +228,13 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
         auto umap = findKmer(kmer);
         if(umap.isEmpty) {
             if(first_unitig_found){
-                break;
+                if(!curr_path.empty()) {
+                    mapping.paths.push_back(curr_path);
+                    curr_path.clear();
+                }
+
+                nodes_to_annotate.clear();
+                continue;
             } else {
                 // Allow for "clipping" of the sequence if we haven't found a unitig yet.
                 continue;
@@ -242,8 +247,12 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
         // `successors` is still populated with successors from the previous unitig, check if our current unitig is a
         // direct successor of it, otherwise we would have an invalid path through the graph.
         if(!successors.empty() && std::find(successors.begin(), successors.end(), unitig) == successors.end()) {
-            // Not a direct successor, quit
-            break;
+            // Not a direct successor, reset
+            if(!curr_path.empty()) {
+                mapping.paths.push_back(curr_path);
+                curr_path.clear();
+            }
+            nodes_to_annotate.clear();
         }
 
         if(!first_unitig_found) {
@@ -252,10 +261,11 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
             first_unitig_found = true;
         }
 
-        mapping.path.push_back(unitig_kmer);
+        curr_path.push_back(unitig_kmer);
         mapping.matches[pos] = true;
         mapping.mapping_end = pos;
 
+        // Update node visit counter
         auto it = mapping.unitig_visits.find(unitig_kmer);
         if(it != mapping.unitig_visits.end()) {
             ++(it->second);
@@ -311,8 +321,13 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
 
         if(kmer != unitig.getMappedTail()) {
             // The k-mer doesn't match the unitig tail anymore. The given sequence (a read) likely contained an error
-            // that was removed from the graph, and now there's no unambiguous path anymore, so we quit.
-            break;
+            // that was removed from the graph, and now there's no unambiguous path anymore, so we reset.
+            if(!curr_path.empty()) {
+                mapping.paths.push_back(curr_path);
+                curr_path.clear();
+            }
+            nodes_to_annotate.clear();
+            continue;
         }
 
         size_t edge_pos = pos + Kmer::k;
@@ -325,8 +340,14 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
         if(successors.size() > 1) {
             char edge = toupper(seq[edge_pos]);
             if(!(edge == 'A' || edge == 'C' || edge == 'G' || edge == 'T')) {
-                // Invalid sequence, quit
-                break;
+                // Invalid sequence, reset
+                if(!curr_path.empty()) {
+                    mapping.paths.push_back(curr_path);
+                    curr_path.clear();
+                }
+
+                nodes_to_annotate.clear();
+                continue;
             }
 
             Kmer succ_kmer = kmer.forwardBase(edge);
@@ -346,15 +367,21 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
                 }
             }
 
-            // Couldn't find a valid successor in the graph, abort
+            // Couldn't find a valid successor in the graph, reset, but allow other k-mers in the sequence to
+            // potentially add links again.
             if(!found_succ) {
-                break;
+                if(!curr_path.empty()) {
+                    mapping.paths.push_back(curr_path);
+                    curr_path.clear();
+                }
+
+                nodes_to_annotate.clear();
             }
         }
     }
 
-    if(!nodes_to_annotate.empty() && max_link_length == 0) {
-        mapping.junctions = nodes_to_annotate[0].second->getJunctionChoices();
+    if(!curr_path.empty()) {
+        mapping.paths.push_back(curr_path);
     }
 
     return mapping;

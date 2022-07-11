@@ -121,7 +121,7 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
     """
     This function adds links from the given reads. It attempts to extend the links generated from read 1 with
     junction choices from read 2. If there's any ambiguity about how to extend them (k-mer mismatches, repeats,
-    different alleles), links will be generated independently from each other.
+    different alleles), links will be generated independently of each other.
 
     Assumes R1 and R2 are oriented in the same direction.
     """
@@ -168,8 +168,8 @@ def add_links_from_paired_read_with_extension(g: BifrostDiGraph, db: LinkDB, rea
                 # navigating the right path.
                 # TODO: distance limit configurable
                 logger.debug("search path...")
-                logger.debug("Read 1 mapped path: %s", mapping_result.path)
-                path = list(link_supported_path_from(g, first_pass_db, mapping_result.path,
+                logger.debug("Read 1 mapped path: %s", mapping_result.paths[-1])
+                path = list(link_supported_path_from(g, first_pass_db, mapping_result.paths[-1],
                                                      distance_limit=1500, stop_unitig=read2_start_unitig))
 
                 if path and path[-1] == read2_start_unitig:
@@ -326,5 +326,4 @@ def log_mapping_result(result: MappingResult):
     start_unitig = result.start_unitig()
     end_unitig = result.end_unitig()
     return [start_unitig if start_unitig else ".", end_unitig if end_unitig else ".",
-            result.junctions if result.junctions else ".",
             len(matches), result.mapping_start, result.mapping_end, matches_str, f"{pct_match:.2f}"]
