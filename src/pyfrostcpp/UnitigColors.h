@@ -56,7 +56,6 @@ public:
             new_pos = pos < 0 ? unitig.size - unitig.getGraph()->getK() + 1 + pos : static_cast<size_t>(pos);
         }
 
-        std::cout << new_pos << std::endl;
         auto new_unitig = unitig.getKmerMapping(new_pos);
 
         if(new_unitig.isEmpty) {
