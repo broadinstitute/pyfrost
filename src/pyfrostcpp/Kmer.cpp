@@ -131,6 +131,7 @@ void define_Kmer(py::module &m) {
 
         // Other functions
         .def("__str__", [] (Kmer const& self) { return self.toString(); })
+        .def("__len__", [] (Kmer const& self) { return Kmer::k; })
         .def("__repr__", [] (Kmer const& self) { return "<Kmer '" + self.toString() + "'>"; })
         .def("__bool__", [] (Kmer const& self) {
             return !is_kmer_empty(self);
