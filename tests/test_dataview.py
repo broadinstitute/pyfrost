@@ -70,17 +70,19 @@ def test_unitig_data(mccortex):
     assert kmer1['unitig_length'] == 7
     assert str(kmer1) == "ACTGATTTCGA"
 
+    assert kmer1.kmer_at(3) == Kmer("GATTT")
+
     assert kmer1['pos'] == 0
-    assert kmer1['strand'] == Strand.REVERSE
+    assert kmer1['strand'] == Strand.FORWARD
 
     assert kmer2['pos'] == 0
-    assert kmer2['strand'] == Strand.FORWARD
+    assert kmer2['strand'] == Strand.REVERSE
 
     assert kmer3['pos'] == 2
-    assert kmer3['strand'] == Strand.REVERSE
+    assert kmer3['strand'] == Strand.FORWARD
 
     assert kmer4['pos'] == 2
-    assert kmer4['strand'] == Strand.FORWARD
+    assert kmer4['strand'] == Strand.REVERSE
 
     # Test user attributes
     kmer1['test'] = 1
@@ -206,4 +208,3 @@ def test_edge_dataview_nbunch(mccortex):
         (kmer1, kmer2),
         (kmer5, kmer2),
     }
-
