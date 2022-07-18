@@ -246,7 +246,7 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
 
         // `successors` is still populated with successors from the previous unitig, check if our current unitig is a
         // direct successor of it, otherwise we would have an invalid path through the graph.
-        if(!successors.empty() && std::find(successors.begin(), successors.end(), unitig) == successors.end()) {
+        if(first_unitig_found && std::find(successors.begin(), successors.end(), unitig) == successors.end()) {
             // Not a direct successor, reset
             if(!curr_path.empty()) {
                 mapping.paths.push_back(curr_path);
