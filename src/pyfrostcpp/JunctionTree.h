@@ -111,7 +111,6 @@ public:
         count(0), JunctionTreeNode(_parent_edge, parent) { }
     JunctionTreeNodeWithCov(JunctionTreeNodeWithCov&& o) = default;
 
-    bool isLeaf() const override;
     JunctionTreeNode& addEdge(char edge) override;
     uint16_t getCount() const override;
 

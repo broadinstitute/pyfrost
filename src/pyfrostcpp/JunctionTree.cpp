@@ -108,20 +108,6 @@ uint16_t JunctionTreeNodeWithCov::getCount() const
     return count;
 }
 
-bool JunctionTreeNodeWithCov::isLeaf() const
-{
-    if(children.empty()) {
-        return true;
-    }
-
-    size_t child_sum = 0;
-    for(auto const& it : children) {
-        child_sum += it.second->getCount();
-    }
-
-    return child_sum < count;
-}
-
 void JunctionTreeNodeWithCov::increment()
 {
     ++count;
