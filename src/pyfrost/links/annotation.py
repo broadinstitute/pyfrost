@@ -247,17 +247,20 @@ def add_links_from_fastq_single(g: BifrostDiGraph, linkdb: LinkDB, file_path: Un
             if len(read.seq) < g.graph['k']:
                 continue
 
+            read_name = read.name
+            if read_name.endswith('/1'):
+                read_name = read_name[:-2]
+
+            logger.debug("Processing read %s...", read_name)
+
             result = ReadMappingResult(
                 annotator.add_links_from_sequence(read.seq),
                 annotator.add_links_from_sequence(pyfrostcpp.reverse_complement(read.seq))
             )
 
             if mapping_results_out:
-                read_name = read.name
-                if read_name.endswith('/1'):
-                    read_name = read_name[:-2]
-                    print(read_name, "F", *log_mapping_result(result.forward), sep='\t', file=mapping_results_out)
-                    print(read_name, "R", *log_mapping_result(result.reverse), sep='\t', file=mapping_results_out)
+                print(read_name, "F", *log_mapping_result(result.forward), sep='\t', file=mapping_results_out)
+                print(read_name, "R", *log_mapping_result(result.reverse), sep='\t', file=mapping_results_out)
 
 
 def add_links_from_fastq(g: BifrostDiGraph, linkdb: LinkDB,
@@ -300,15 +303,17 @@ def add_links_from_fastq(g: BifrostDiGraph, linkdb: LinkDB,
                 if len(read1.seq) < g.graph['k'] or len(read2.seq) < g.graph['k']:
                     continue
 
+                read_name = read1.name
+                if read_name.endswith('/1'):
+                    read_name = read_name[:-2]
+
+                logger.debug("Processing read pair %s...", read_name)
+
                 result = add_links_from_paired_read(g, linkdb, read1.seq, read2.seq,
                                                     first_pass_db=first_pass_db,
                                                     read2_orientation=read2_orientation)
 
                 if mapping_results_out:
-                    read_name = read1.name
-                    if read_name.endswith('/1'):
-                        read_name = read_name[:-2]
-
                     print(read_name, "F", str(result.forward[2]),
                           *log_mapping_result(result.forward[0]), *log_mapping_result(result.forward[1]),
                           sep='\t', file=mapping_results_out)
