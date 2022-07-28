@@ -35,6 +35,9 @@ class PyfrostNodeDataView(NodeDataView):
 
         self.with_rev_compl = with_rev_compl
 
+    def __len__(self):
+        return super().__len__() if self.with_rev_compl else super().__len__() // 2
+
     def __iter__(self):
         data = self._data
 
