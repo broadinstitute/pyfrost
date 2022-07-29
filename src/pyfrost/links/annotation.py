@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Union, Type, NamedTuple, TextIO
 import numpy
 import pyfrostcpp
 from pyfrostcpp import LinkAnnotator, ColorAssociatedAnnotator, MappingResult, Strand
-from pyfrost.links.db import LinkDB, MemLinkDB
+from pyfrost.links.db import LinkDB, MemLinkDBWithCov, prune_db
 from pyfrost.links.nav import link_supported_path_from
 from pyfrost.io import read_fastq, read_paired_fastq, open_compressed
 
@@ -265,9 +265,11 @@ def add_links_from_fastq_single(g: BifrostDiGraph, linkdb: LinkDB, file_path: Un
 
 def add_links_from_fastq(g: BifrostDiGraph, linkdb: LinkDB,
                          files: Union[str, Path, list[str], list[Path]], twopass: bool = True,
-                         read2_orientation: Strand = Strand.REVERSE, mapping_results_out: TextIO = None):
+                         read2_orientation: Strand = Strand.REVERSE, mapping_results_out: TextIO = None,
+                         *, existing_first_pass: str = None, first_pass_ofile: str = None,
+                         prune_first_pass: int = 0):
     if not isinstance(files, list):
-        files = list(files)
+        files = [files]
 
     if not files:
         return
@@ -285,13 +287,25 @@ def add_links_from_fastq(g: BifrostDiGraph, linkdb: LinkDB,
         # Paired-end reads
         first_pass_db = None
         if twopass:
-            # In the first pass we just add links independently without pair information
-            logger.info("PASS 1 / 2: Building first-pass link database...")
-            first_pass_db = MemLinkDB()
-            first_pass_db.color = linkdb.color
+            if existing_first_pass:
+                logger.info("PASS 1 / 2: Loading existing first-pass database from %s", existing_first_pass)
+                first_pass_db = MemLinkDBWithCov.from_file(existing_first_pass)
+            else:
+                # In the first pass we just add links independently without pair information
+                logger.info("PASS 1.1 / 2: Building first-pass link database...")
+                first_pass_db = MemLinkDBWithCov()
+                first_pass_db.color = linkdb.color
 
-            add_links_from_fastq_single(g, first_pass_db, files[0])
-            add_links_from_fastq_single(g, first_pass_db, files[1])
+                add_links_from_fastq_single(g, first_pass_db, files[0])
+                add_links_from_fastq_single(g, first_pass_db, files[1])
+
+                if prune_first_pass:
+                    logger.info("PASS 1.2 / 2: Pruning first-pass link database...")
+                    prune_db(first_pass_db, prune_first_pass)
+
+                if first_pass_ofile:
+                    logger.info("PASS 1.3 / 2: Saving first-pass link database...")
+                    first_pass_db.save(first_pass_ofile)
 
             logger.info("PASS 2 / 2: Adding links from %s and %s (paired-end mode), utilizing the first-pass "
                         "database...", *files)
