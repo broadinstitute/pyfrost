@@ -159,6 +159,7 @@ public:
         return max_count.load();
     }
 
+    std::vector<kmercount_t> getAllCounts();
     std::vector<uint64_t> getFrequencySpectrum();
 
     template<typename Archive>
