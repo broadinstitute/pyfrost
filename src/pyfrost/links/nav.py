@@ -274,9 +274,11 @@ class NavigationEngine:
         self.link_color: Optional[int] = linkdb.color
 
         self.picked_up_links = LinkManager()
+        self.visited = set()
 
     def clear_context(self):
         self.picked_up_links.clear()
+        self.visited.clear()
 
     def pick_successor(self) -> Optional[str]:
         if not self.picked_up_links:
@@ -308,6 +310,10 @@ class NavigationEngine:
             neighbor = next(iter(neighbors_dict.values()))
             if neighbor == curr_node:
                 logger.debug("The only successor of %s is itself, stopping to prevent infinite loop", curr_node)
+                return
+            elif not self.picked_up_links and neighbor in self.visited:
+                logger.debug("No links available, and reaching a node already visited. Halting navigation to prevent "
+                             "infinite loop (curr_node=%s, neighbor=%s).", curr_node, neighbor)
                 return
             else:
                 return neighbor
@@ -382,6 +388,7 @@ class NavigationEngine:
 
             # Pick up any links associated with this node
             self.picked_up_links.pick_up_links(self.linkdb, n, tail)
+            self.visited.add(n)
 
             # Key neighbors by the nucleotide added
             neighbors_dict = {
