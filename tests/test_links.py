@@ -1,7 +1,7 @@
 import sys
 
 import numpy
-import pytest
+import pytest  # noqa
 
 from pyfrost import Kmer, links, reverse_complement
 
@@ -63,7 +63,6 @@ def test_mapping_result(mccortex):
     result = links.add_links_from_single_sequence(g, linkdb, "TTTCGATGCGATGCGATGCCACG")
     matches = result.matching_kmers()
     assert numpy.all(matches)
-    assert result.junctions == b"TGGCG"
     assert result.start_unitig() == Kmer("ACTGA")
     assert result.end_unitig() == Kmer("CCACG")
     assert result.mapping_start == 0
@@ -78,7 +77,6 @@ def test_mapping_result(mccortex):
     matches = result.matching_kmers()
     assert numpy.all(matches[:-3])
     assert not numpy.any(matches[-3:])
-    assert result.junctions == b"TGGCG"
     assert result.start_unitig() == Kmer("ACTGA")
     assert result.end_unitig() == Kmer("CCACG")
     assert result.mapping_start == 0
@@ -203,6 +201,31 @@ def test_links_from_file(mccortex):
             assert len(tree) == 0
 
     for kmer, tree in mem_link_db.items():
+        all_choices = set()
+        for node in links.jt.postorder(tree):
+            if node.is_leaf():
+                choices = node.junction_choices()
+                all_choices.add(choices)
+
+        assert all_choices == known_links.get(kmer, set())
+
+
+def test_merge_links(linked_mccortex):
+    g, source_linkdb = linked_mccortex
+
+    target_linkdb = links.MemLinkDBWithCov()
+    target_linkdb.merge(source_linkdb)
+
+    assert set(target_linkdb.keys()) == set(k for k in source_linkdb.keys() if len(source_linkdb[k]) > 0)
+
+    known_links = get_known_links()
+    for kmer, tree in target_linkdb.items():
+        if kmer in known_links:
+            assert len(tree) == len(known_links[kmer])
+        else:
+            assert len(tree) == 0
+
+    for kmer, tree in target_linkdb.items():
         all_choices = set()
         for node in links.jt.postorder(tree):
             if node.is_leaf():

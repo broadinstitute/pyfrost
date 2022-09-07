@@ -1,15 +1,16 @@
 #include "JunctionTree.h"
 
 #include <utility>
+#include <queue>
 
 namespace pyfrost {
 
-JunctionTreeNode::JunctionTreeNode() : parent(nullptr), parent_edge(0)
+JunctionTreeNode::JunctionTreeNode() : parent(nullptr), label(0)
 {
 }
 
-JunctionTreeNode::JunctionTreeNode(char _parent_edge, JunctionTreeNode::parent_ptr_t _parent)
-    : parent(_parent), parent_edge(_parent_edge)
+JunctionTreeNode::JunctionTreeNode(char _label, JunctionTreeNode::parent_ptr_t _parent)
+    : parent(_parent), label(_label)
 {
 }
 
@@ -18,8 +19,8 @@ JunctionTreeNode::parent_ptr_t JunctionTreeNode::getParent()
     return parent;
 }
 
-char JunctionTreeNode::getParentEdge() const {
-    return parent_edge;
+char JunctionTreeNode::getLabel() const {
+    return label;
 }
 
 JunctionTreeNode::children_t& JunctionTreeNode::getChildren()
@@ -27,19 +28,26 @@ JunctionTreeNode::children_t& JunctionTreeNode::getChildren()
     return children;
 }
 
-
-JunctionTreeNode& JunctionTreeNode::addEdge(char edge)
+JunctionTreeNode& JunctionTreeNode::addOrGetChild(char child)
 {
-    if(!(edge == 'A' || edge == 'C' || edge =='G' || edge == 'T')) {
-        throw std::runtime_error("Invalid edge, must be one of A, C, T or G");
+    if(!(child == 'A' || child == 'C' || child == 'G' || child == 'T')) {
+        throw std::runtime_error("Invalid child, must be one of A, C, T or G");
     }
 
-    auto it = children.find(edge);
-    if(it == children.end()) {
-        children.emplace(edge, std::make_unique<JunctionTreeNode>(edge, this));
+    auto it = children.find(child);
+    if(it == getChildren().end()) {
+        children.emplace(child, std::make_unique<JunctionTreeNode>(child, this));
     }
 
-    return *children[edge];
+    return *children[child];
+}
+
+/**
+ * Because this JunctionTreeNode doesn't store coverage, this is just a wrapper around addOrGetChild
+ */
+JunctionTreeNode& JunctionTreeNode::addOrIncrementChild(char child)
+{
+    return addOrGetChild(child);
 }
 
 
@@ -74,8 +82,8 @@ string JunctionTreeNode::getJunctionChoices() {
     deque<char> output;
     JunctionTreeNode* curr = this;
 
-    while(curr->parent_edge) {
-        output.push_front(curr->parent_edge);
+    while(curr->label) {
+        output.push_front(curr->label);
         if(curr->parent != nullptr) {
             curr = curr->parent;
         } else {
@@ -90,7 +98,7 @@ vector<uint16_t> JunctionTreeNode::getCoverages() {
     deque<size_t> output;
     JunctionTreeNode* curr = this;
 
-    while(curr->parent_edge) {
+    while(curr->label) {
         output.push_front(curr->getCount());
         if(curr->parent != nullptr) {
             curr = curr->parent;
@@ -102,6 +110,24 @@ vector<uint16_t> JunctionTreeNode::getCoverages() {
     return {output.begin(), output.end()};
 }
 
+
+void JunctionTreeNode::merge(JunctionTreeNode& other)
+{
+    std::queue<pair<JunctionTreeNode*, JunctionTreeNode*>> q;
+    q.push(make_pair(this, &other));
+
+    while(!q.empty()) {
+        JunctionTreeNode* target = q.front().first;
+        JunctionTreeNode* source = q.front().second;
+        q.pop();
+
+        for(auto& other_child : source->getChildren()) {
+            auto& target_child = target->addOrGetChild(other_child.first);
+            q.push(make_pair(&target_child, other_child.second.get()));
+        }
+    }
+}
+
 // JunctionTreeNodeWithCov
 uint16_t JunctionTreeNodeWithCov::getCount() const
 {
@@ -110,25 +136,56 @@ uint16_t JunctionTreeNodeWithCov::getCount() const
 
 void JunctionTreeNodeWithCov::increment()
 {
-    ++count;
+    if(count < numeric_limits<uint16_t>::max()) {  // Don't overflow
+        ++count;
+    }
 }
 
-JunctionTreeNode& JunctionTreeNodeWithCov::addEdge(char edge)
+void JunctionTreeNodeWithCov::increment(uint32_t num)
 {
-    if(!(edge == 'A' || edge == 'C' || edge =='G' || edge == 'T')) {
-        throw std::runtime_error("Invalid edge, must be one of A, C, T or G");
-    }
-
-    auto it = children.find(edge);
-    if(it == getChildren().end()) {
-        children.emplace(edge, std::make_unique<JunctionTreeNodeWithCov>(edge, this));
-    }
-
-    dynamic_cast<JunctionTreeNodeWithCov*>(children[edge].get())->increment();
-
-    return *children[edge];
+    count = min(static_cast<uint32_t>(numeric_limits<uint16_t>::max()), num + count);
 }
 
+JunctionTreeNode& JunctionTreeNodeWithCov::addOrGetChild(char label)
+{
+    if(!(label == 'A' || label == 'C' || label =='G' || label == 'T')) {
+        throw std::runtime_error("Invalid label, must be one of A, C, T or G");
+    }
+
+    auto it = children.find(label);
+    if(it == getChildren().end()) {
+        children.emplace(label, std::make_unique<JunctionTreeNodeWithCov>(label, this));
+    }
+
+    return *children[label];
+}
+
+JunctionTreeNode& JunctionTreeNodeWithCov::addOrIncrementChild(char label)
+{
+    auto& child = addOrGetChild(label);
+    dynamic_cast<JunctionTreeNodeWithCov*>(&child)->increment();
+
+    return child;
+}
+
+void JunctionTreeNodeWithCov::merge(JunctionTreeNode& other)
+{
+    std::queue<pair<JunctionTreeNode*, JunctionTreeNode*>> q;
+    q.push(make_pair(this, &other));
+
+    while(!q.empty()) {
+        JunctionTreeNode* target = q.front().first;
+        JunctionTreeNode* source = q.front().second;
+        q.pop();
+
+        target->increment(source->getCount());
+
+        for(auto& other_child : source->getChildren()) {
+            auto& target_child = target->addOrGetChild(other_child.first);
+            q.push(make_pair(&target_child, other_child.second.get()));
+        }
+    }
+}
 
 
 void define_JunctionTreeNode(py::module& m) {
@@ -154,7 +211,7 @@ void define_JunctionTreeNode(py::module& m) {
         .def("__repr__", [] (JunctionTreeNode& self) {
             std::stringstream sstream;
 
-            char parent = self.getParentEdge();
+            char parent = self.getLabel();
             parent = parent == 0 ? '-' : parent;
             sstream << "<JunctionTreeNode parent=" << parent << " count=" << self.getCount();
             sstream << " children=[";
@@ -193,6 +250,7 @@ void define_JunctionTreeNode(py::module& m) {
             return as_pyarray<vector<uint16_t>>(move(self.getCoverages()));
         })
 
+        .def("merge", &JunctionTreeNode::merge)
         .def("prune", &JunctionTreeNode::prune)
         .def("is_leaf", &JunctionTreeNode::isLeaf)
 
@@ -204,9 +262,9 @@ void define_JunctionTreeNode(py::module& m) {
 
             return py::none();
         }, py::return_value_policy::reference)
-        .def_property_readonly("parent_edge", [] (JunctionTreeNode& self) -> py::object {
-            if(self.getParentEdge() != 0) {
-                return py::cast(self.getParentEdge());
+        .def_property_readonly("label", [] (JunctionTreeNode& self) -> py::object {
+            if(self.getLabel() != 0) {
+                return py::cast(self.getLabel());
             }
 
             return py::none();
@@ -217,6 +275,9 @@ void define_JunctionTreeNode(py::module& m) {
 
     auto py_JunctionTreeNodeWithCov = py::class_<JunctionTreeNodeWithCov, JunctionTreeNode>(
         m, "JunctionTreeNodeWithCov")
+
+        .def("merge", &JunctionTreeNodeWithCov::merge)
+
         .def("is_leaf", &JunctionTreeNodeWithCov::isLeaf)
         .def_property_readonly("count", &JunctionTreeNodeWithCov::getCount);
 

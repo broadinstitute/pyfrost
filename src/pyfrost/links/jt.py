@@ -35,7 +35,7 @@ def preorder(jt: JunctionTreeNode, with_depth=False) -> Iterable[JunctionTreeNod
         else:
             yield node
 
-        # Reversed to that the right most child gets processed last
+        # Reversed so that the right most child gets processed last
         for child in reversed(list(node.values())):
             stack.appendleft((child, depth+1))
 

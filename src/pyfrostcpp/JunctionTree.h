@@ -52,13 +52,18 @@ public:
     };
 
     JunctionTreeNode();
-    JunctionTreeNode(char _parent_edge, parent_ptr_t parent);
+    JunctionTreeNode(char _label, parent_ptr_t parent);
     JunctionTreeNode(JunctionTreeNode&& o) = default;
 
     parent_ptr_t getParent();
-    char getParentEdge() const;
+    char getLabel() const;
     children_t& getChildren();
-    virtual JunctionTreeNode& addEdge(char edge);
+    virtual JunctionTreeNode& addOrGetChild(char child);
+    virtual JunctionTreeNode& addOrIncrementChild(char child);
+
+    // No coverage stored in this class, but here to keep API consistent
+    virtual void increment() { }
+    virtual void increment(uint32_t num) { }
 
     keys_iterator keys_begin() {
         return {children.begin()};
@@ -84,9 +89,11 @@ public:
     string getJunctionChoices();
     vector<uint16_t> getCoverages();
 
+    virtual void merge(JunctionTreeNode& other);
+
     template<typename Archive>
     void serialize(Archive& ar) {
-        ar(parent_edge, children);
+        ar(label, children);
     }
 
     // To be called after loading from a file.
@@ -97,22 +104,29 @@ public:
         }
     }
 
-protected:
+public:
+
     parent_ptr_t parent;
     children_t children;
-    char parent_edge;
+    char label;
 };
 
 
 class JunctionTreeNodeWithCov : public JunctionTreeNode {
 public:
     JunctionTreeNodeWithCov() : count(1), JunctionTreeNode() { }
-    JunctionTreeNodeWithCov(char _parent_edge, parent_ptr_t parent) :
-        count(0), JunctionTreeNode(_parent_edge, parent) { }
+    JunctionTreeNodeWithCov(char label, parent_ptr_t parent) :
+        count(0), JunctionTreeNode(label, parent) { }
     JunctionTreeNodeWithCov(JunctionTreeNodeWithCov&& o) = default;
 
-    JunctionTreeNode& addEdge(char edge) override;
+    JunctionTreeNode& addOrGetChild(char label) override;
+    JunctionTreeNode& addOrIncrementChild(char label) override;
     uint16_t getCount() const override;
+
+    void merge(JunctionTreeNode& other) override;
+
+    void increment() override;
+    void increment(uint32_t num) override;
 
     template<typename Archive>
     void serialize(Archive& ar) {
@@ -120,8 +134,6 @@ public:
     }
 
 private:
-    void increment();
-
     uint16_t count;
 };
 

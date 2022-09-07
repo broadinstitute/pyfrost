@@ -52,7 +52,19 @@ public:
     virtual JunctionTreeNode& createOrGetTree(Kmer const& kmer) = 0;
 
     /**
-     * Get the color associated with this link database. If it's negative it's not associated with any color.
+     * Merge links from another database with this link database
+     */
+    virtual void merge(LinkDB& other) {
+        for(auto& pair : other.getJunctionTrees()) {
+            if(!pair.second->getChildren().empty()) {
+                auto& tree = createOrGetTree(pair.first);
+                tree.merge(*pair.second);
+            }
+        }
+    }
+
+    /**
+     * Get the color associated with this link database.
      */
     tl::optional<size_t> getColor() const {
         return color;

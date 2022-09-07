@@ -359,7 +359,7 @@ MappingResult LinkAnnotator<T>::addLinksFromSequence(string const& seq, bool kee
                     // Add edge choice to each tree
                     std::for_each(nodes_to_annotate.begin(), nodes_to_annotate.end(),
                                   [edge] (pair<size_t, JunctionTreeNode*>& node) {
-                        node.second = &node.second->addEdge(edge);
+                        node.second = &node.second->addOrIncrementChild(edge);
                     });
 
                     found_succ = true;
@@ -413,7 +413,7 @@ void LinkAnnotator<T>::addLinksFromPath(vector<Kmer> const& path) {
             char edge = path[i+1].getChar(Kmer::k-1);
             std::for_each(nodes_to_annotate.begin(), nodes_to_annotate.end(),
             [edge] (pair<size_t, JunctionTreeNode*>& node) {
-                   node.second = &node.second->addEdge(edge);
+                   node.second = &node.second->addOrIncrementChild(edge);
             });
         }
 
