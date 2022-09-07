@@ -25,6 +25,44 @@ std::ostream& operator<<(std::ostream& o, pyfrost::PyfrostColoredUMap const& u) 
 
 namespace pyfrost {
 
+void setKG(size_t k, size_t g)
+{
+    if(k <= 2) {
+        throw std::out_of_range("k-mer size needs to be at least 3");
+    }
+
+    if(k >= MAX_KMER_SIZE) {
+        const uint16_t max_kmer_size = MAX_KMER_SIZE - 1;
+        std::stringstream error_msg;
+        error_msg << "K-mer size is too big! Max k-mer size: " << max_kmer_size;
+        throw std::out_of_range(error_msg.str());
+    }
+
+    if(g > (k - 2)) {
+        throw std::out_of_range("Minimizer length cannot exceed k-2");
+    }
+
+    if(g == 0) {
+        if(k >= 15) {
+            g = k - DEFAULT_G_DEC1;
+        } else if(k >= 7) {
+            g = k - DEFAULT_G_DEC2;
+        } else {
+            g = k - 2;
+        }
+    }
+
+    if(Kmer::k > 0 && Kmer::k != k) {
+        std::cerr << "WARNING: setting new k-mer size! old: " << Kmer::k << " => new: " << k << std::endl;
+    }
+    Kmer::set_k(k);
+
+    if(Minimizer::g > 0 && Minimizer::g != g) {
+        std::cerr << "WARNING: setting new minimizer size! old: " << Minimizer::g << " => new: " << g << std::endl;
+    }
+    Minimizer::set_g(g);
+}
+
 py::object findUnitig(PyfrostCCDBG& g, Kmer const& kmer, bool extremities_only=false) {
     auto unitig = g.find(kmer, extremities_only);
 

@@ -170,7 +170,7 @@ public:
     template<typename Archive>
     void load(Archive& ar) {
         ar(k, g, canonical);
-        setKmerGmer();
+        setKG(k, g);
 
         size_t _num_kmers = 0;
         size_t _num_unique = 0;
@@ -194,7 +194,6 @@ public:
 
 private:
     void counterThread();
-    void setKmerGmer();
 
     size_t k;
     size_t g;

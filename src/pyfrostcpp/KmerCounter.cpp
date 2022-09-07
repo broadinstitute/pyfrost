@@ -19,7 +19,7 @@ KmerCounter::KmerCounter(size_t _k, size_t _g, bool _canonical, size_t _num_thre
     tables(1 << _table_bits), table_locks(1 << _table_bits),
     num_kmers(0), num_unique(0), max_count(0), finished_reading(false)
 {
-    setKmerGmer();
+    setKG(k, g);
 }
 
 KmerCounter::KmerCounter(KmerCounter const& o) :
@@ -27,7 +27,7 @@ KmerCounter::KmerCounter(KmerCounter const& o) :
     tables(o.tables), table_locks(tables.size()), num_kmers(o.num_kmers.load()), num_unique(o.num_unique.load()),
     max_count(o.max_count.load()), finished_reading(o.finished_reading.load())
 {
-    setKmerGmer();
+    setKG(k, g);
 }
 
 KmerCounter::KmerCounter(KmerCounter&& o) :
@@ -35,37 +35,7 @@ KmerCounter::KmerCounter(KmerCounter&& o) :
     tables(std::move(o.tables)), table_locks(tables.size()), num_kmers(o.num_kmers.load()),
     num_unique(o.num_unique.load()), max_count(o.max_count.load()), finished_reading(o.finished_reading.load())
 {
-    setKmerGmer();
-}
-
-void KmerCounter::setKmerGmer() {
-    if(k <= 2) {
-        throw std::out_of_range("k-mer size needs to be at least 3");
-    }
-
-    if(k >= MAX_KMER_SIZE) {
-        const uint16_t max_kmer_size = MAX_KMER_SIZE - 1;
-        std::stringstream error_msg;
-        error_msg << "K-mer size is too big! Max k-mer size: " << max_kmer_size;
-        throw std::out_of_range(error_msg.str());
-    }
-
-    if(g > (k - 2)) {
-        throw std::out_of_range("Minimizer length cannot exceed k-2");
-    }
-
-    if(g == 0) {
-        if(k >= 15) {
-            g = k - DEFAULT_G_DEC1;
-        } else if(k >= 7) {
-            g = k - DEFAULT_G_DEC2;
-        } else {
-            g = k - 2;
-        }
-    }
-
-    Kmer::set_k(k);
-    Minimizer::set_g(g);
+    setKG(k, g);
 }
 
 KmerCounter& KmerCounter::countKmers(std::string const& str)

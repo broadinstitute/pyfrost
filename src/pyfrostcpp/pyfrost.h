@@ -41,6 +41,9 @@ enum class Strand : uint8_t {
     FORWARD
 };
 
+
+void setKG(size_t k, size_t g = 0);
+
 }
 
 #endif //PYFROST_PYFROST_H
