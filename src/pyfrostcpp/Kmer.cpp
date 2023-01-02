@@ -129,6 +129,19 @@ void define_Kmer(py::module &m) {
             return py::bytes(kmer_binary);
         })
 
+        // Make pickleable
+        .def("__getstate__", [] (Kmer const& self) {
+            stringstream stream;
+            self.write(stream);
+
+            std::string kmer_binary = stream.str();
+            return py::bytes(kmer_binary);
+        })
+        .def("__setstate__", [] (Kmer& self, std::string const& state) {
+            istringstream stream(state);
+            self.read(stream);
+        })
+
         // Other functions
         .def("__str__", [] (Kmer const& self) { return self.toString(); })
         .def("__len__", [] (Kmer const& self) { return Kmer::k; })
