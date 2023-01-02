@@ -62,6 +62,9 @@ class CMakeBuild(build_ext):
         if 'COMPILATION_ARCH' in env:
             cmake_args.append(f"-DCOMPILATION_ARCH={env['COMPILATION_ARCH']}")
 
+        if 'MAX_KMER_SIZE' in env:
+            cmake_args.append(f"-DMAX_KMER_SIZE={int(env['MAX_KMER_SIZE']):d}")
+
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
