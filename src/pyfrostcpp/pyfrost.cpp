@@ -52,6 +52,8 @@ void setKG(size_t k, size_t g)
         }
     }
 
+    g = std::min(MAX_GMER_SIZE, (int) g);
+
     if(Kmer::k > 0 && Kmer::k != k) {
         std::cerr << "WARNING: setting new k-mer size! old: " << Kmer::k << " => new: " << k << std::endl;
     }
