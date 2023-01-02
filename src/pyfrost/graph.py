@@ -161,7 +161,7 @@ class BifrostDiGraph(networkx.DiGraph):
             yield from (n.head for n in self._ccdbg.color_restricted_predecessors(node, allowed_colors))
 
 
-def get_neighborhood(g: BifrostDiGraph, source, radius=3, both_directions=True, ext_colors=None):
+def get_neighborhood(g: BifrostDiGraph, source, radius=3, both_directions=True, ext_colors=None, excl_nodes=None):
     """
     Get the neighborhood around one or more given source nodes.
 
@@ -175,15 +175,15 @@ def get_neighborhood(g: BifrostDiGraph, source, radius=3, both_directions=True, 
     the ones given in `ext_colors` it is not further extended.
     """
 
-    neighborhood = networkx.DiGraph()
     neighborhood_nodes = set()
+    excl_nodes = excl_nodes if excl_nodes is not None else set()
 
     queue = deque()
-    if isinstance(source, abc.Iterable):
-        for src_node in source:
-            queue.append((0, Kmer(src_node)))
+    if isinstance(source, Kmer) or isinstance(source, str):
+        queue.append((0, source))
     else:
-        queue.append((0, Kmer(source)))
+        for src_node in source:
+            queue.append((0, src_node))
 
     if ext_colors is not None and not isinstance(ext_colors, set):
         ext_colors = {ext_colors}
@@ -200,14 +200,14 @@ def get_neighborhood(g: BifrostDiGraph, source, radius=3, both_directions=True, 
         # Don't extend any further if ext_colors is given and the node has a different color
         if level < radius and (ext_colors is None or ext_colors & ndata['colors']):
             for succ in g.successors(node):
-                if succ in neighborhood:
+                if succ in neighborhood_nodes or succ in excl_nodes:
                     continue
 
                 queue.append((level + 1, succ))
 
             if both_directions:
                 for pred in g.predecessors(node):
-                    if pred in neighborhood:
+                    if pred in neighborhood_nodes or pred in excl_nodes:
                         continue
 
                     queue.append((level + 1, pred))
