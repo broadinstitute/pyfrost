@@ -7,6 +7,7 @@ Think of building paths through the graph, depth-first search, etc.
 from __future__ import annotations
 import logging
 import sys
+from enum import Enum, auto
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterable, Union, Optional
 from collections.abc import Sequence
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
     from pyfrost.graph import BifrostDiGraph, Node
     from pyfrost.links.db import LinkDB
 
-__all__ = ['follow_link', 'link_junction_edges', 'PickedUpLink', 'LinkManager', 'NavigationEngine',
+__all__ = ['follow_link', 'link_junction_edges', 'PickedUpLink', 'LinkManager', 'NavigatorState', 'NavigationEngine',
            'link_supported_path_from']
 
 logger = logging.getLogger(__name__)
@@ -55,14 +56,17 @@ def follow_link(g: BifrostDiGraph, start_kmer: Kmer, link: jt.Link) -> Iterable[
         raise networkx.NodeNotFound(f"Could not find start kmer '{start_kmer}'")
 
     curr_node = start_unitig['head']
+    out_degree = g.out_degree(curr_node)
     pos = 0
-    while pos < len(link.choices):
+    visited = set()
+    while pos < len(link.choices) or out_degree == 1:
         yield curr_node
+        visited.add(curr_node)
 
         # Find neighbor
-        if g.out_degree[curr_node] > 1:
+        if out_degree > 1:
             neighbors = {
-                str(neighbor)[-1]: neighbor for neighbor in g.neighbors(curr_node)
+                neighbor[-1]: neighbor for neighbor in g.neighbors(curr_node)
             }
             choice = chr(link.choices[pos])
             if choice not in neighbors:
@@ -72,9 +76,16 @@ def follow_link(g: BifrostDiGraph, start_kmer: Kmer, link: jt.Link) -> Iterable[
                 )
 
             curr_node = neighbors[choice]
+            out_degree = g.out_degree(curr_node)
             pos += 1
-        elif g.out_degree[curr_node] == 1:
+        elif out_degree == 1:
             curr_node = next(g.neighbors(curr_node))
+
+            # Prevent loops after exhausting link
+            if pos >= len(link.choices) and curr_node in visited:
+                return
+
+            out_degree = g.out_degree(curr_node)
         else:
             if len(link.choices) - pos > 1:
                 logger.warning(f"Link has remaining junction choices but no outgoing edges available for node "
@@ -115,7 +126,7 @@ def link_junction_edges(g: BifrostDiGraph, start_kmer: Kmer, link: jt.Link) -> I
         # Find neighbor
         if g.out_degree[curr_node] > 1:
             neighbors = {
-                str(neighbor)[-1]: neighbor for neighbor in g.neighbors(curr_node)
+                edata['label']: neighbor for neighbor, edata in g.succ[curr_node].items()
             }
             choice = chr(link.choices[pos])
             if choice not in neighbors:
@@ -263,6 +274,18 @@ class LinkManager:
         return self.picked_up_links[item]
 
 
+class NavigatorState(Enum):
+    START = auto()
+    NAVIGATING = auto()
+    HALTED_NO_SUCCESSORS = auto()
+    HALTED_AMBIGUOUS_NO_LINKS = auto()
+    HALTED_MULTIPLE_LINKS = auto()
+    HALTED_PREVENT_LOOP = auto()
+    HALTED_DISTANCE_LIMIT = auto()
+    HALTED_STOP_UNITIG = auto()
+    HALTED_OTHER = auto()
+
+
 class NavigationEngine:
     """
     This class implements all the logic to traverse a graph with support from links
@@ -275,14 +298,16 @@ class NavigationEngine:
 
         self.picked_up_links = LinkManager()
         self.visited = set()
+        self.state = NavigatorState.START
 
     def clear_context(self):
         self.picked_up_links.clear()
         self.visited.clear()
+        self.state = NavigatorState.START
 
-    def pick_successor(self) -> Optional[str]:
+    def current_successor_options(self) -> set[str]:
         if not self.picked_up_links:
-            return
+            return set()
 
         oldest_links = set()
         oldest = self.picked_up_links.get_oldest().dist
@@ -293,6 +318,14 @@ class NavigationEngine:
 
             oldest_links.add(link.choices[pos])
 
+        return oldest_links
+
+    def pick_successor(self) -> Optional[str]:
+        if not self.picked_up_links:
+            self.state = NavigatorState.HALTED_AMBIGUOUS_NO_LINKS
+            return
+
+        oldest_links = self.current_successor_options()
         if len(oldest_links) == 1:
             logger.debug("%s%s, cov: %d, remaining: %d", "-" * self.picked_up_links.get_oldest().pos, "V",
                          self.picked_up_links.get_oldest().current_cov(), self.picked_up_links.get_oldest().remaining())
@@ -301,19 +334,23 @@ class NavigationEngine:
             return chr(next(iter(oldest_links)))
         else:
             logger.debug("Multiple oldest links: %s, halting navigation.", oldest_links)
+            self.state = NavigatorState.HALTED_MULTIPLE_LINKS
 
     def _find_next_node(self, curr_node: Kmer, neighbors_dict: dict[str, Kmer]) -> Optional[Kmer]:
         # Which neighbors are supported by the links?
         if len(neighbors_dict) == 0:
+            logger.debug("No neighbors")
             return
         elif len(neighbors_dict) == 1:
             neighbor = next(iter(neighbors_dict.values()))
             if neighbor == curr_node:
                 logger.debug("The only successor of %s is itself, stopping to prevent infinite loop", curr_node)
+                self.state = NavigatorState.HALTED_PREVENT_LOOP
                 return
             elif not self.picked_up_links and neighbor in self.visited:
                 logger.debug("No links available, and reaching a node already visited. Halting navigation to prevent "
                              "infinite loop (curr_node=%s, neighbor=%s).", curr_node, neighbor)
+                self.state = NavigatorState.HALTED_PREVENT_LOOP
                 return
             else:
                 return neighbor
@@ -345,7 +382,7 @@ class NavigationEngine:
         ----------
         source : Kmer, str, list[Kmer], list[str]
             Source node to build path from. Additionally, you can specify an existing path as source. The algorithm
-            will pickup any links along that path, to gain as much "link context", which will aid in traversal beyond
+            will pick up any links along that path, to gain as much "link context", which will aid in traversal beyond
             the end of the given path.
         distance_limit : int, optional
             Maximum path length in k-mers, excludes any source nodes
@@ -383,6 +420,8 @@ class NavigationEngine:
         source_ix = 0
         curr_dist = 0
         while n:
+            self.state = NavigatorState.NAVIGATING
+
             tail = ndata['tail']
             logger.debug("Current node: %s (tail: %s)", n, tail)
 
@@ -428,6 +467,7 @@ class NavigationEngine:
 
                     if distance_limit and curr_dist > distance_limit:
                         n = None
+                        self.state = NavigatorState.HALTED_DISTANCE_LIMIT
                     else:
                         if with_dist:
                             yield n, curr_dist
@@ -436,6 +476,7 @@ class NavigationEngine:
 
                     if n in stop_unitig:
                         n = None
+                        self.state = NavigatorState.HALTED_STOP_UNITIG
 
 
 def link_supported_path_from(g: BifrostDiGraph, linkdb: LinkDB, source: Union[Node, Sequence[Node]],
