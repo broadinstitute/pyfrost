@@ -1,6 +1,18 @@
+import pickle
 import pytest  # noqa
 
 from pyfrost import Kmer, path_sequence, path_nucleotide_length, path_kmers, kmerize_str, set_k
+
+
+def test_kmer_pickle(mccortex, tmp_path):
+    node_list = list(mccortex.nodes)
+    with open(tmp_path / "test.pickle", "wb") as o:
+        pickle.dump(node_list, o)
+
+    with open(tmp_path / "test.pickle", "rb") as f:
+        node_list2 = pickle.load(f)
+
+    assert node_list == node_list2
 
 
 def test_build_sequence(mccortex):
