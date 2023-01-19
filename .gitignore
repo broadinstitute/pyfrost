@@ -24,3 +24,4 @@ docs/_data/*.bfg_colors
 docs/_build/
 docs/_data/*.links
 docs/_data/mapping_results.tsv
+compile_commands.json
