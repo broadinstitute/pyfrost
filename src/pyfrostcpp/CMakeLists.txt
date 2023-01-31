@@ -2,6 +2,8 @@ pybind11_add_module(pyfrostcpp
         UnitigDataDict.h
         Kmer.h
         Kmer.cpp
+        Minimizers.h
+        Minimizers.cpp
         KmerCounter.h
         KmerCounter.cpp
         UnitigColors.h

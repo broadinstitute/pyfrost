@@ -3,6 +3,7 @@
 
 #include "pyfrost.h"
 #include "Kmer.h"
+#include "Minimizers.h"
 #include "KmerCounter.h"
 #include "UnitigDataDict.h"
 #include "NodeDataDict.h"
@@ -208,7 +209,6 @@ PyfrostCCDBG load(char const* input_graph_file, char const* input_color_file, py
 
 void dump(PyfrostCCDBG& g, string const& fname_prefix, size_t num_threads=2) {
     g.write(fname_prefix, num_threads);
-    // TODO: write additional GFA tags
 }
 
 }
@@ -229,14 +229,20 @@ PYBIND11_MODULE(pyfrostcpp, m) {
     py::implicitly_convertible<py::list, std::vector<std::string>>();
 
     pyfrost::define_Kmer(m);
-    pyfrost::define_PyfrostCCDBG(m);
     pyfrost::define_KmerCounter(m);
+
+    pyfrost::define_Minimizer(m);
+    pyfrost::define_MinHashIterator(m);
+    pyfrost::define_MinHashResult(m);
+
+    pyfrost::define_PyfrostCCDBG(m);
     pyfrost::define_UnitigColors(m);
     pyfrost::define_NodeDataDict(m);
     pyfrost::define_UnitigMapping(m);
     pyfrost::define_NodesDict(m);
     pyfrost::define_AdjacencyInnerDict(m);
     pyfrost::define_AdjacencyOuterDict(m);
+
     pyfrost::define_JunctionTreeNode(m);
     pyfrost::define_LinkDB(m);
     pyfrost::define_MemLinkDB<pyfrost::JunctionTreeNode>(m, "MemLinkDB");

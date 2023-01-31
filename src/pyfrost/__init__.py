@@ -8,6 +8,7 @@ from pyfrost.io import *
 from pyfrost.seq import *
 from pyfrost.graph import *
 from pyfrost.counter import *
+from pyfrost.minimizers import *
 
 from pyfrostcpp import k_g
 

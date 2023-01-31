@@ -1,18 +1,18 @@
-import pyfrost
-from pyfrost import links
+from pyfrost import all_minimizers
+#from pyfrostcpp import minhash_iter, Minimizer
 
+seq = "TACGTACTGCTGACGTCTGCAGTCGTACGTCGTACCGTA"
+for minimizer, pos in all_minimizers(seq, 11, 5):
+    print(minimizer, pos, hash(minimizer))
 
-def test_add_links(mccortex):
-    db = links.MemLinkDB()
-    db.color = 0
+"""
+minhashes = list(minhash_iter(seq, 11, 5))
 
-    links.add_links_from_single_sequence(mccortex, db, "TTTCGATGCGATGCGATGCCACG")
-    db.save("test.links")
+for pos, minhash_results in enumerate(minhashes):
+    kmer = seq[pos:pos+11]
+    print(kmer)
 
-    db2 = links.MemLinkDB.from_file("test.links")
-    print(db2.color)
-
-
-if __name__ == '__main__':
-    g = pyfrost.build_from_refs(['tests/data/mccortex.fasta'], k=5, g=3)
-    test_add_links(g)
+    for result in minhash_results:
+        minimizer = Minimizer(seq[result.pos:result.pos+5])
+        print("-", minimizer, hash(minimizer), result)
+"""
