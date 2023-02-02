@@ -73,17 +73,18 @@ private:
 
 class MinHashIterator {
 public:
-    explicit MinHashIterator(std::string const& _str) : str(_str), k(Kmer::k), g(Minimizer::g) { }
-    MinHashIterator(std::string const& _str, size_t _k) : str(_str), k(_k) {
+    explicit MinHashIterator(std::string const& _str) : str(_str) { }
+
+    MinHashIterator(std::string const& _str, size_t _k) : str(_str) {
         setKG(_k);
     }
 
-    MinHashIterator(std::string const& _str, size_t _k, size_t _g) : str(_str), k(_k), g(_g) {
+    MinHashIterator(std::string const& _str, size_t _k, size_t _g) : str(_str) {
         setKG(_k, _g);
     }
 
     MinHashIterWrapper begin() const {
-        return {minHashIterator<RepHash>(str.c_str(), str.length(), k, g, RepHash(), false)};
+        return {minHashIterator<RepHash>(str.c_str(), str.length(), Kmer::k, Minimizer::g, RepHash(), false)};
     }
 
     MinHashIterWrapper end() const {
@@ -92,9 +93,6 @@ public:
 
 private:
     std::string str;
-    size_t k;
-    size_t g;
-
 };
 
 

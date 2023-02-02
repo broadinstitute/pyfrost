@@ -6,12 +6,12 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Iterable, Sequence
 
-from pyfrostcpp import reverse_complement, Kmer, kmerize_str, Strand, set_k, max_k
+from pyfrostcpp import reverse_complement, Kmer, kmerize_str, Strand, set_k, max_k, max_g
 
 if TYPE_CHECKING:
     from pyfrost.graph import BifrostDiGraph
 
-__all__ = ['reverse_complement', 'Kmer', 'kmerize_str', 'Strand', 'set_k', 'max_k', 'path_sequence',
+__all__ = ['reverse_complement', 'Kmer', 'kmerize_str', 'Strand', 'set_k', 'max_k', 'max_g', 'path_sequence',
            'path_nucleotide_length', 'path_kmers', 'path_rev_compl']
 
 

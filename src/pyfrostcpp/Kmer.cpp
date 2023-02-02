@@ -164,8 +164,9 @@ void define_Kmer(py::module &m) {
         }, py::keep_alive<0, 1>());
 
 
-    // two bits are reserved for k-mer metadata
+    // Last two bits are reserved for k-mer metadata
     m.attr("max_k") = MAX_KMER_SIZE - 1;
+    m.attr("max_g") = MAX_GMER_SIZE - 1;
 
     m.def("set_k", &Kmer::set_k,
           "Set the k-mer size for all `Kmer` objects. Only use at the beginning of the program!");

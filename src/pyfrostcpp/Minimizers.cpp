@@ -1,4 +1,5 @@
 #include "Minimizers.h"
+#include "Kmer.hpp"
 
 
 namespace pyfrost {
@@ -9,6 +10,7 @@ void define_Minimizer(py::module& m) {
         .def(py::init<>())
         .def(py::init<Minimizer const&>())
         .def(py::init<char const*>())
+        .def_static("from_bytes", &Minimizer::fromBytes, "Create minimizer from bytes.")
 
         .def(py::self == py::self)
         .def(py::self != py::self)
@@ -17,7 +19,9 @@ void define_Minimizer(py::module& m) {
         .def("twin", &Minimizer::twin, "Get the reverse complement of this Minimizer")
         .def("rep", &Minimizer::rep, "Get the canonical minimizer")
 
-        .def("__bytes__", &Minimizer::getBinary, "Get binary representation")
+        .def("__bytes__", [] (Minimizer const& self) {
+                return py::bytes(self.asBytes());
+        }, "Get binary representation")
         .def("__str__", py::overload_cast<>(&Minimizer::toString, py::const_), "Convert to string")
         .def("__repr__", [] (Minimizer const& self) {
             stringstream ss;

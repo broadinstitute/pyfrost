@@ -49,6 +49,6 @@ def all_minimizers(sequence: str, k: Optional[int] = None, g: Optional[int] = No
                 continue
 
             minimizer = Minimizer(sequence[result.pos:result.pos+curr_g])
-            yield minimizer.rep(), kmer_pos
+            yield MinimizerResult(minimizer.rep(), kmer_pos, result.pos)
 
             last_pos = result.pos
