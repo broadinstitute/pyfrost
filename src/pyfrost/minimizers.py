@@ -5,7 +5,7 @@ Tools to obtain minimizers from a sequence
 from __future__ import annotations
 from typing import Optional, NamedTuple, Iterable
 
-from pyfrostcpp import Minimizer, minhash_iter, k_g
+from pyfrostcpp import Strand, Minimizer, minhash_iter, k_g
 
 __all__ = ['Minimizer', 'all_minimizers']
 
@@ -17,6 +17,7 @@ class MinimizerResult(NamedTuple):
     minimizer: Minimizer
     kmer_pos: int
     minimizer_pos: int
+    strand: Strand
 
 
 def all_minimizers(sequence: str, k: Optional[int] = None, g: Optional[int] = None) -> Iterable[MinimizerResult]:
@@ -49,6 +50,9 @@ def all_minimizers(sequence: str, k: Optional[int] = None, g: Optional[int] = No
                 continue
 
             minimizer = Minimizer(sequence[result.pos:result.pos+curr_g])
-            yield MinimizerResult(minimizer.rep(), kmer_pos, result.pos)
+            minimizer_rep = minimizer.rep()
+            strand = Strand.FORWARD if minimizer == minimizer_rep else Strand.REVERSE
+
+            yield MinimizerResult(minimizer_rep, kmer_pos, result.pos, strand)
 
             last_pos = result.pos
