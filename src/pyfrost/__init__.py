@@ -10,7 +10,7 @@ from pyfrost.graph import *
 from pyfrost.counter import *
 from pyfrost.minimizers import *
 
-from pyfrostcpp import k_g
+from pyfrostcpp import k_g, k, g, set_k_g
 
 from ._version import get_versions
 __version__ = get_versions()['version']

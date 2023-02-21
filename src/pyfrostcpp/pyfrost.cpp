@@ -56,12 +56,12 @@ void setKG(size_t k, size_t g)
     g = std::min(MAX_GMER_SIZE, (int) g);
 
     if(Kmer::k > 0 && Kmer::k != k) {
-        std::cerr << "WARNING: setting new k-mer size! old: " << Kmer::k << " => new: " << k << std::endl;
+        std::cerr << "INFO: setting new k-mer size! old: " << Kmer::k << " => new: " << k << std::endl;
     }
     Kmer::set_k(k);
 
     if(Minimizer::g > 0 && Minimizer::g != g) {
-        std::cerr << "WARNING: setting new minimizer size! old: " << Minimizer::g << " => new: " << g << std::endl;
+        std::cerr << "INFO: setting new minimizer size! old: " << Minimizer::g << " => new: " << g << std::endl;
     }
     Minimizer::set_g(g);
 }
@@ -260,7 +260,25 @@ PYBIND11_MODULE(pyfrostcpp, m) {
     m.def("reverse_complement", py::overload_cast<char const*>(&reverse_complement),
         "Return the reverse complement of a DNA string");
 
+    m.def("k", [] () {
+        return Kmer::k;
+    });
+    m.def("g", [] () {
+        return Minimizer::g;
+    });
+
     m.def("k_g", [] () {
         return py::make_tuple(Kmer::k, Minimizer::g);
     });
+
+    m.def("set_k_g", [] (py::object k, py::object g) {
+        size_t _k = k.cast<size_t>();
+        size_t _g = 0;
+        if(!g.is_none()) {
+            _g = g.cast<size_t>();
+        }
+
+        pyfrost::setKG(_k, _g);
+    }, py::arg("k"), py::arg("g") = py::none());
+
 }

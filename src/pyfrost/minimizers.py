@@ -7,12 +7,12 @@ from typing import Optional, NamedTuple, Iterable
 
 from pyfrostcpp import Strand, Minimizer, minhash_iter, k_g
 
-__all__ = ['Minimizer', 'all_minimizers']
+__all__ = ['MinimizerResult', 'Minimizer', 'all_minimizers']
 
 
 class MinimizerResult(NamedTuple):
     """A single identified minimizer in a given sequence, with additional information
-    like the current k-mer position, and the position in the sequence of the minimizer."""
+    like the current k-mer position, and the minimizer position in the sequence."""
 
     minimizer: Minimizer
     kmer_pos: int
