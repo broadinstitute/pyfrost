@@ -6,7 +6,6 @@ reference.
 """
 
 from __future__ import annotations
-import json
 import logging
 from collections import defaultdict
 from typing import TextIO, NamedTuple
@@ -21,13 +20,6 @@ logger = logging.getLogger(__name__)
 class KmerPosition(NamedTuple):
     contig_id: int
     pos: int
-
-
-def json_decode(kv_pairs):
-    if kv_pairs[0][0] in {"contig_ids", "index"}:
-        return dict(kv_pairs)
-    else:
-        return {Kmer(k): KmerPosition(*v) for k, v in kv_pairs.items()}
 
 
 class KmerPosIndex:
