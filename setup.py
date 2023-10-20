@@ -99,12 +99,7 @@ setup(
     data_files=[
         ('bin', [BIFROST_REL_PATH])
     ],
-    include_package_data=True,
-
-    setup_requires=['cmake>=3.10'],
-    install_requires=['networkx>=2.4'],
 
     ext_modules=[CMakeExtension('pyfrostcpp', target=['pyfrostcpp', 'Bifrost'])],
     cmdclass=dict(build_ext=CMakeBuild, **versioneer.get_cmdclass()),
-    zip_safe=False,
 )
